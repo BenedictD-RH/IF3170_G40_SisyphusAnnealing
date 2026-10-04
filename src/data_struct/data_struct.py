@@ -34,6 +34,9 @@ class Package:
         self.isFragile = isFragile
         self.eta = eta
 
+    def getVolume(self) :
+        return self.dimensions['w'] * self.dimensions['l'] * self.dimensions['h']
+
 class PackageState:
     def __init__(self, 
                  package : Package, 
@@ -54,10 +57,21 @@ class PackageState:
         return (x, y, z, x2, y2, z2)
 
     def isInTruck(self, truckdim) :
+        return (self.coordinates['x'] >= 0 and truckdim['w'] > self.coordinates['x'] and
+                self.coordinates['y'] >= 0 and truckdim['l'] > self.coordinates['y'] and
+                self.coordinates['z'] >= 0 and truckdim['h'] > self.coordinates['z'])
+
+    def overflowVolume(self, truckdim) :
         bb = self.getAbsoluteBB()
-        return (bb[3] <= truckdim["w"] and 
-                bb[4] <= truckdim["l"] and 
-                bb[5] <= truckdim["h"])
+        w = max(0, min(truckdim["w"] - bb[0], bb[3], bb[3] - bb[0], truckdim["w"]))
+        l = max(0, min(truckdim["l"] - bb[1], bb[4], bb[4] - bb[1], truckdim["l"]))
+        h = max(0, min(truckdim["h"] - bb[2], bb[5], bb[5] - bb[2], truckdim["h"]))
+    
+        return self.package.getVolume() - w*l*h
+
+    def isFullyInTruck(self, truckdim) :
+        return self.overflowVolume(truckdim) == 0 and self.isInTruck()
+        
 
     def getID(self) :
         return self.package.id
@@ -65,22 +79,27 @@ class PackageState:
     def isFragile(self) :
         return self.package.isFragile
 
-    
-def isIntersecting(p1 : PackageState, p2 : PackageState) :
-    bb1 = p1.getAbsoluteBB()
-    bb2 = p2.getAbsoluteBB()
-    return (bb1[0] <= bb2[3] and bb2[0] <= bb1[3] and
-            bb1[1] <= bb2[4] and bb2[1] <= bb1[4] and
-            bb1[2] <= bb2[5] and bb2[2] <= bb1[5])
+    def getValue(self) :
+        return self.package.value
 
+    def getWeight(self) :
+        return self.package.weight
+
+    def getValuePerUnit(self) :
+        return float(self.package.value)/self.package.getVolume()
+
+    
 def intersectingArea(p1 : PackageState, p2 : PackageState) :
     bb1 = p1.getAbsoluteBB()
     bb2 = p2.getAbsoluteBB()
-    w = max(0, min(bb2[3] - bb1[0], bb1[3] - bb2[0]))
-    l = max(0, min(bb2[4] - bb1[1], bb1[4] - bb2[1]))
-    h = max(0, min(bb2[5] - bb1[2], bb1[5] - bb2[2]))
+    w = max(0, min(bb2[3] - bb1[0], bb1[3] - bb2[0], bb1[3] - bb1[0], bb2[3] - bb2[0]))
+    l = max(0, min(bb2[4] - bb1[1], bb1[4] - bb2[1], bb1[4] - bb1[1], bb2[4] - bb2[1]))
+    h = max(0, min(bb2[5] - bb1[2], bb1[5] - bb2[2], bb1[5] - bb1[2], bb2[5] - bb2[2]))
 
     return w * l * h
+
+def isIntersecting(p1 : PackageState, p2 : PackageState) :
+    return intersectingArea(p1, p2) == 0
 
 def isStackedOn(top : PackageState, bottom : PackageState) :
     top_bb = top.getAbsoluteBB()
@@ -113,7 +132,7 @@ class TruckState:
         return cls(**data)
 
 def getTotalValue(state : TruckState) :
-    package_validity = [x.isInTruck(state.truck.dimensions) for x in state.packages]
+    package_validity = [x.isFullyInTruck(state.truck.dimensions) for x in state.packages]
 
     # Cek buat intersection/overlap
     for i in range(len(state.packages)) :
@@ -151,4 +170,19 @@ def getTotalValue(state : TruckState) :
 
 
 
+def objectiveFunction(state : TruckState) :
+    value = 0.0
+    weight = 0
+    maxValPerUnit = 0
+    for p in state.packages :
+        if p.isInTruck(state.truck.dimensions) :
+            weight += p.getWeight()
+            maxValPerUnit = max(maxValPerUnit, p.getValuePerUnit())
+            for q in state.packages :
+                if p.getID() != q.getID() and q.isInTruck(state.truck.dimensions) :
+                    value -= 2*p.getValuePerUnit()*intersectingArea(p, q)
+                #yg blm : floating, fragile, eta
+            value += p.getValue() - 2*p.overflowVolume(state.truck.dimensions)*p.getValuePerUnit()
 
+
+    return value - max(0, (weight - state.truck.maxCapacity)*maxValPerUnit)
