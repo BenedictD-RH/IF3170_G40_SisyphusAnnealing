@@ -2,7 +2,7 @@
     "truck" : 
     {
         "dimensions" : {"w" : 10, "l" : 20, "h" : 5},
-        "maxCapacity" : 500
+        "maxCapacity" : 10
     },
     "packages" :
     [
@@ -11,13 +11,26 @@
             {
                 "id" : "RusdiPackage",
                 "dimensions" : {"w" : 3, "l" : 4, "h" : 1},
-                "value" : 20,
+                "value" : 60,
                 "weight" : 5,
                 "isFragile" : false,
                 "eta" : 3
             },
             "coordinates" : {"x" : 0, "y" : 0, "z" : 0},
-            "orientation" : {"w" : "x", "l" : "y", "h" : "z"}
+            "orientation" : {"x" : "w", "y" : "l", "z" : "h"}
+        },
+        {
+            "package" : 
+            {
+                "id" : "BudiPackage",
+                "dimensions" : {"w" : 2, "l" : 2, "h" : 2},
+                "value" : 70,
+                "weight" : 10,
+                "isFragile" : false,
+                "eta" : 3
+            },
+            "coordinates" : {"x" : 2, "y" : 3, "z" : 0},
+            "orientation" : {"x" : "w", "y" : "l", "z" : "h"}
         }
     ]
 }
