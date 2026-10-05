@@ -1,0 +1,200 @@
+import time
+import math
+import random
+import copy
+from typing import Callable, Optional, Union
+from src.data_struct import TruckState, objectiveFunction
+from .stochastic_hill_climbing import StochasticHillClimbing
+
+
+class SimulatedAnnealing(StochasticHillClimbing):
+    """
+    Simulated Annealing Algorithm for 3D Cargo Packing Optimization.
+    
+    Parameters:
+    -----------
+    initial_state : TruckState
+        Initial packing state.
+    initial_temp : float, default=1000.0
+        Starting temperature (T0). Higher values accept more worse solutions early on.
+    cooling_rate : float, default=0.995
+        Rate at which temperature decreases.
+        For geometric: T = T * cooling_rate
+        For linear: T = T - cooling_rate
+        For logarithmic: scaling factor in denominator.
+    min_temp : float, default=0.001
+        Minimum stopping temperature.
+    max_iterations : int, default=1000
+        Maximum number of iterations allowed.
+    steps_per_temp : int, default=1
+        Number of candidate evaluations before applying cooling schedule (Markov chain length).
+    cooling_schedule : str or Callable, default="geometric"
+        Cooling strategy: "geometric" (or "exponential"), "linear", "logarithmic", "cosine", or custom function.
+    step_size : int, default=2
+        Step size parameter for neighbor coordinate shifts.
+    """
+    def __init__(self, 
+                 initial_state: TruckState, 
+                 initial_temp: float = 1000.0, 
+                 cooling_rate: float = 0.995, 
+                 min_temp: float = 0.001, 
+                 max_iterations: int = 1000,
+                 steps_per_temp: int = 1,
+                 cooling_schedule: Union[str, Callable[[float, int], float]] = "geometric",
+                 step_size: int = 2):
+        super().__init__(initial_state=initial_state, max_iterations=max_iterations, step_size=step_size)
+        self.initial_temp = float(initial_temp)
+        self.temp = float(initial_temp)
+        self.cooling_rate = float(cooling_rate)
+        self.min_temp = float(min_temp)
+        self.steps_per_temp = max(1, int(steps_per_temp))
+        self.cooling_schedule = cooling_schedule
+
+        # Metrics tracking
+        self.accepted_better_moves: int = 0
+        self.accepted_worse_moves: int = 0
+        self.rejected_moves: int = 0
+        self.temperatures: list[float] = []
+        self.costs: list[float] = []
+
+    # Parameter Setters
+    def set_temperature(self, temp: float) -> None:
+        self.temp = max(0.0, float(temp))
+
+    def set_initial_temp(self, temp: float) -> None:
+        self.initial_temp = max(0.0, float(temp))
+        self.temp = self.initial_temp
+
+    def set_cooling_rate(self, cooling_rate: float) -> None:
+        self.cooling_rate = float(cooling_rate)
+
+    def set_min_temp(self, min_temp: float) -> None:
+        self.min_temp = max(0.0, float(min_temp))
+
+    def set_cooling_schedule(self, schedule: Union[str, Callable[[float, int], float]]) -> None:
+        self.cooling_schedule = schedule
+
+    def set_steps_per_temp(self, steps: int) -> None:
+        self.steps_per_temp = max(1, int(steps))
+
+    def compute_next_temp(self, current_temp: float, iteration: int) -> float:
+        if callable(self.cooling_schedule):
+            return max(0.0, self.cooling_schedule(current_temp, iteration))
+
+        schedule = str(self.cooling_schedule).lower()
+        if schedule in ("geometric", "exponential"):
+            return current_temp * self.cooling_rate
+        elif schedule == "linear":
+            return max(self.min_temp, current_temp - self.cooling_rate)
+        elif schedule == "logarithmic":
+            # T_k = T_0 / (1 + cooling_rate * ln(1 + k))
+            return self.initial_temp / (1.0 + self.cooling_rate * math.log(1.0 + iteration))
+        elif schedule == "cosine":
+            # T_k = min_temp + 0.5 * (T_0 - min_temp) * (1 + cos(pi * k / K_max))
+            progress = min(1.0, iteration / max(1, self.max_iterations))
+            return self.min_temp + 0.5 * (self.initial_temp - self.min_temp) * (1.0 + math.cos(math.pi * progress))
+        else:
+            # Default fallback to geometric
+            return current_temp * self.cooling_rate
+
+    def acceptance_probability(self, delta: float, temp: float) -> float:
+        # delta = neighbor_cost - current_cost (delta <= 0 untuk solusi yang lebih buruk).
+    
+        if temp <= 0.0:
+            return 0.0
+        exponent = delta / temp
+        if exponent < -700:
+            return 0.0
+        elif exponent > 0:
+            return 1.0
+        return math.exp(exponent)
+
+    def should_accept(self, current_cost: float, neighbor_cost: float, temp: Optional[float] = None) -> tuple[bool, float]:
+        
+        # Returns:  tuple[bool, float]: (accepted, acceptance_prob)
+        if temp is None:
+            temp = self.temp
+
+        if neighbor_cost > current_cost:
+            return True, 1.0
+        
+        delta = neighbor_cost - current_cost
+        prob = self.acceptance_probability(delta, temp)
+        accepted = random.random() < prob
+        return accepted, prob
+
+    def optimize(self) -> TruckState:
+        start_time = time.time()
+        self.temp = self.initial_temp
+        current_cost = objectiveFunction(self.current_state)
+        best_cost = current_cost
+        self.best_state = copy.deepcopy(self.current_state)
+
+        # Reset metrik
+        self.accepted_moves = 0
+        self.accepted_better_moves = 0
+        self.accepted_worse_moves = 0
+        self.rejected_moves = 0
+        self.temperatures = [self.temp]
+        self.costs = [current_cost]
+        self.history = [{
+            "iteration": 0,
+            "temperature": self.temp,
+            "current_cost": current_cost,
+            "neighbor_cost": current_cost,
+            "best_cost": best_cost,
+            "accepted": True,
+            "delta": 0.0,
+            "probability": 1.0
+        }]
+
+        iteration = 0
+        step_counter = 0
+
+        while self.temp > self.min_temp and iteration < self.max_iterations:
+            iteration += 1
+            step_counter += 1
+
+            neighbor = self.get_neighbor(self.current_state)
+            neighbor_cost = objectiveFunction(neighbor)
+            delta = neighbor_cost - current_cost
+
+            accepted, prob = self.should_accept(current_cost, neighbor_cost, self.temp)
+
+            if accepted:
+                self.current_state = neighbor
+                current_cost = neighbor_cost
+                self.accepted_moves += 1
+
+                if delta > 0:
+                    self.accepted_better_moves += 1
+                else:
+                    self.accepted_worse_moves += 1
+
+                if current_cost > best_cost:
+                    self.best_state = copy.deepcopy(self.current_state)
+                    best_cost = current_cost
+            else:
+                self.rejected_moves += 1
+
+            self.temperatures.append(self.temp)
+            self.costs.append(current_cost)
+            self.history.append({
+                "iteration": iteration,
+                "temperature": self.temp,
+                "current_cost": current_cost,
+                "neighbor_cost": neighbor_cost,
+                "best_cost": best_cost,
+                "accepted": accepted,
+                "delta": delta,
+                "probability": prob
+            })
+
+            # Update temperature after every steps_per_temp iterations
+            if step_counter >= self.steps_per_temp:
+                self.temp = self.compute_next_temp(self.temp, iteration)
+                step_counter = 0
+
+        self.total_iterations = iteration
+        self.execution_time = time.time() - start_time
+        return self.best_state

@@ -37,6 +37,10 @@ class Package:
     def getVolume(self) :
         return self.dimensions['w'] * self.dimensions['l'] * self.dimensions['h']
 
+    def getValuePerUnit(self) :
+        vol = self.getVolume()
+        return float(self.value) / vol if vol > 0 else 0.0
+
 class PackageState:
     def __init__(self, 
                  package : Package, 
@@ -70,7 +74,7 @@ class PackageState:
         return self.package.getVolume() - w*l*h
 
     def isFullyInTruck(self, truckdim) :
-        return self.overflowVolume(truckdim) == 0 and self.isInTruck()
+        return self.overflowVolume(truckdim) == 0 and self.isInTruck(truckdim)
         
 
     def getID(self) :
@@ -99,24 +103,24 @@ def intersectingArea(p1 : PackageState, p2 : PackageState) :
     return w * l * h
 
 def isIntersecting(p1 : PackageState, p2 : PackageState) :
-    return intersectingArea(p1, p2) == 0
+    return intersectingArea(p1, p2) > 0
 
 def isStackedOn(top : PackageState, bottom : PackageState) :
     top_bb = top.getAbsoluteBB()
     bottom_bb = bottom.getAbsoluteBB()
 
-    if (top_bb[0] > bottom_bb[3] or bottom_bb[0] > top_bb[3] or
-        top_bb[1] > bottom_bb[4] or bottom_bb[1] > top_bb[4]) :
+    if (top_bb[0] >= bottom_bb[3] or bottom_bb[0] >= top_bb[3] or
+        top_bb[1] >= bottom_bb[4] or bottom_bb[1] >= top_bb[4]) :
         return False
 
-    return top_bb[2] == (bottom_bb[5] - 1)
+    return top_bb[2] == bottom_bb[5]
 
 
 class TruckState:
     def __init__(self, 
                  truck : Truck, 
                  packages : list[PackageState]) :
-        self.truck = Truck(**truck) if isinstance(truck, dict) else Truck
+        self.truck = Truck(**truck) if isinstance(truck, dict) else truck
         self.packages = [(PackageState(**package) if isinstance(package, dict) else package) for package in packages]
 
     def to_json(self) :
