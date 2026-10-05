@@ -31,6 +31,7 @@ class HillClimbing:
             new_ori["x"], new_ori["y"] = new_ori["y"], new_ori["x"]
         return new_ori
 
+    # buat HC SA,stocastic
     def get_neighbor(self, state: TruckState) -> TruckState:
         neighbor = copy.deepcopy(state)
         n_pkgs = len(neighbor.packages)
@@ -90,10 +91,69 @@ class HillClimbing:
             pkg.orientation = self.rotate_90(pkg.orientation, axis)
 
         return neighbor
+            
+    # buat HC steppest.sideway etc yang ngambil semua sample neighbor 
+    def get_all_neighbors(self, state: TruckState) -> list[TruckState]:
+        all_neighbors: list[TruckState] = []
+        n_pkgs = len(state.packages)
+        if n_pkgs == 0:
+            return all_neighbors
+
+        truck_dims = state.truck.dimensions
+        w_max = max(0, truck_dims.get("w", 10) - 1)
+        l_max = max(0, truck_dims.get("l", 10) - 1)
+        h_max = max(0, truck_dims.get("h", 10) - 1)
+        for i in range(n_pkgs):
+            for j in range(i + 1, n_pkgs):
+                nbr = copy.deepcopy(state)
+                p1 = nbr.packages[i]
+                p2 = nbr.packages[j]
+                p1.coordinates, p2.coordinates = copy.deepcopy(p2.coordinates), copy.deepcopy(p1.coordinates)
+                p1.orientation, p2.orientation = copy.deepcopy(p2.orientation), copy.deepcopy(p1.orientation)
+                all_neighbors.append(nbr)
+        for i in range(n_pkgs):
+            for axis in ["x", "y", "z"]:
+                nbr = copy.deepcopy(state)
+                nbr.packages[i].orientation = self.rotate_90(nbr.packages[i].orientation, axis)
+                all_neighbors.append(nbr)
+        step = max(1, self.step_size)
+        shifts = []
+        for dx in [-step, 0, step]:
+            for dy in [-step, 0, step]:
+                for dz in [-step, 0, step]:
+                    if dx != 0 or dy != 0 or dz != 0:
+                        shifts.append((dx, dy, dz))
+
+        for i in range(n_pkgs):
+            pkg = state.packages[i]
+            if pkg.coordinates["x"] >= 0:
+                for dx, dy, dz in shifts:
+                    new_x = max(0, min(w_max, pkg.coordinates["x"] + dx))
+                    new_y = max(0, min(l_max, pkg.coordinates["y"] + dy))
+                    new_z = max(0, min(h_max, pkg.coordinates["z"] + dz))
+
+                    if (new_x, new_y, new_z) != (pkg.coordinates["x"], pkg.coordinates["y"], pkg.coordinates["z"]):
+                        nbr = copy.deepcopy(state)
+                        nbr.packages[i].coordinates = {"x": new_x, "y": new_y, "z": new_z}
+                        all_neighbors.append(nbr)
+
+                nbr = copy.deepcopy(state)
+                nbr.packages[i].coordinates = {"x": -1, "y": -1, "z": -1}
+                all_neighbors.append(nbr)
+            else:
+                nbr = copy.deepcopy(state)
+                nbr.packages[i].coordinates = {"x": 0, "y": 0, "z": 0}
+                all_neighbors.append(nbr)
+
+        return all_neighbors
 
     def should_accept(self, current_cost: float, neighbor_cost: float) -> bool:
-        """Hill Climbing standar: hanya terima jika Strictly Better."""
-        return neighbor_cost > current_cost
+
+        raise NotImplementedError(
+            "HillClimbing adalah template class tanpa heuristik bawaan. "
+            "Heuristik penerimaan harus diimplementasikan oleh kelas turunannya "
+            "(misalnya SimpleHillClimbing, StochasticHillClimbing, atau SimulatedAnnealing)."
+        )
 
     def optimize(self) -> TruckState:
         start_time = time.time()
@@ -133,3 +193,12 @@ class HillClimbing:
 
         self.execution_time = time.time() - start_time
         return self.best_state
+
+
+class SimpleHillClimbing(HillClimbing):
+    """
+    Kelas turunan Hill Climbing standar / klasik:
+    Heuristik penerimaan = Strictly Better (hanya menerima jika neighbor_cost > current_cost).
+    """
+    def should_accept(self, current_cost: float, neighbor_cost: float) -> bool:
+        return neighbor_cost > current_cost
