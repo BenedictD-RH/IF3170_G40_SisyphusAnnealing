@@ -46,6 +46,16 @@ class TestStochasticHillClimbing(unittest.TestCase):
         accepted_count = sum(shc.should_accept(current_cost=10.0, neighbor_cost=100.0) for _ in range(50))
         self.assertEqual(accepted_count, 50)
 
+    def test_zero_temperature_greedy_behavior(self):
+        """Uji bahwa pada T <= 0, Stochastic Hill Climbing berperilaku murni Greedy."""
+        shc_zero = StochasticHillClimbing(self.initial_state, temperature=0.0)
+        # Pada T = 0, delta > 0 harus 100% diterima
+        self.assertTrue(shc_zero.should_accept(current_cost=10.0, neighbor_cost=10.1))
+        # delta <= 0 harus 100% ditolak
+        self.assertFalse(shc_zero.should_accept(current_cost=10.0, neighbor_cost=10.0))
+        self.assertFalse(shc_zero.should_accept(current_cost=10.0, neighbor_cost=9.9))
+
+
     def test_optimization_run(self):
         """Uji eksekusi optimasi Stochastic Hill Climbing."""
         shc = StochasticHillClimbing(self.initial_state, max_iterations=50, temperature=2.0)

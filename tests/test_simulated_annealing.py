@@ -145,7 +145,36 @@ class TestSimulatedAnnealing(unittest.TestCase):
         prob_low = sa.acceptance_probability(delta=-5.0, temp=0.001)
         self.assertEqual(prob_low, 0.0)
 
+    def test_boundary_temperature_handling(self):
+        """
+        Menguji perilaku pada batas suhu:
+        1. Suhu T <= 0: Berperilaku murni Greedy (hanya terima jika delta > 0, tolak mutlak delta <= 0).
+        2. Suhu T -> inf (Suhu maksimum): Berperilaku Random Walk (terima semua langkah dengan probabilitas 1.0).
+        """
+        sa = SimulatedAnnealing(self.initial_state, initial_temp=0.0)
+
+        # Uji pada T = 0.0 (Greedy)
+        accepted_better, prob_better = sa.should_accept(current_cost=50.0, neighbor_cost=60.0, temp=0.0)
+        self.assertTrue(accepted_better)
+        self.assertEqual(prob_better, 1.0)
+
+        accepted_worse, prob_worse = sa.should_accept(current_cost=50.0, neighbor_cost=40.0, temp=0.0)
+        self.assertFalse(accepted_worse)
+        self.assertEqual(prob_worse, 0.0)
+
+        accepted_equal, prob_equal = sa.should_accept(current_cost=50.0, neighbor_cost=50.0, temp=0.0)
+        self.assertFalse(accepted_equal)
+        self.assertEqual(prob_equal, 0.0)
+
+        # Uji pada T -> inf / T sangat besar (Random Walk)
+        self.assertEqual(sa.acceptance_probability(delta=-100.0, temp=float('inf')), 1.0)
+        self.assertEqual(sa.acceptance_probability(delta=-100.0, temp=1e15), 1.0)
+        accepted_huge_t, prob_huge_t = sa.should_accept(current_cost=50.0, neighbor_cost=20.0, temp=float('inf'))
+        self.assertTrue(accepted_huge_t)
+        self.assertEqual(prob_huge_t, 1.0)
+
     def test_cooling_schedules(self):
+
         """Menguji berbagai macam cooling schedules."""
         sa = SimulatedAnnealing(self.initial_state, initial_temp=100.0, cooling_rate=0.9)
 

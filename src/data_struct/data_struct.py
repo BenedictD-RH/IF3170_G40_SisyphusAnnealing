@@ -138,11 +138,6 @@ class TruckState:
         return cls(**data)
 
     def generate_random_state(self, outside_prob: float = 0.2) -> "TruckState":
-        """
-        Menghasilkan kondisi awal acak (random initial state) untuk truk dan paket-paketnya.
-        Paket dapat ditempatkan di dalam truk atau di luar truk (koordinat (-1, -1, -1)).
-        Orientasi paket diacak 90 derajat pada sumbu x, y, z.
-        """
         import random
         rand_state = copy.deepcopy(self)
         truck_dims = rand_state.truck.dimensions

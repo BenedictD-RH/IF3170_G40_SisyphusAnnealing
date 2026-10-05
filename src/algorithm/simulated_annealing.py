@@ -74,30 +74,55 @@ class SimulatedAnnealing(StochasticHillClimbing):
             return current_temp * self.cooling_rate
 
     def acceptance_probability(self, delta: float, temp: float) -> float:
-        # delta = neighbor_cost - current_cost (delta <= 0 untuk solusi yang lebih buruk).
-    
+        """
+        Menghitung probabilitas penerimaan Boltzmann P = exp(delta / T).
+        - delta > 0  : Selalu return 1.0 (langkah perbaikan).
+        - temp <= 0  : Mode GREEDY -> return 1.0 jika delta > 0, return 0.0 jika delta <= 0.
+        - temp -> inf: Mode RANDOM WALK -> return 1.0 untuk semua langkah (karena delta/T -> 0, exp(0) = 1).
+        - delta <= 0 : return exp(delta / temp) dalam rentang (0.0, 1.0].
+        """
+        if delta > 0:
+            return 1.0
+
         if temp <= 0.0:
+            # Pada suhu 0 (nol mutlak), tidak ada toleransi langkah buruk -> Greedy
             return 0.0
+
+        if math.isinf(temp) or temp >= 1e12:
+            # Pada suhu sangat tinggi / maksimum, semua langkah diterima -> Pure Random Walk
+            return 1.0
+
         exponent = delta / temp
         if exponent < -700:
             return 0.0
         elif exponent > 0:
             return 1.0
+
         return math.exp(exponent)
 
     def should_accept(self, current_cost: float, neighbor_cost: float, temp: Optional[float] = None) -> tuple[bool, float]:
-        
-        # Returns:  tuple[bool, float]: (accepted, acceptance_prob)
+        """
+        Menentukan apakah tetangga diterima berdasarkan probabilitas Boltzmann.
+        - Saat suhu T <= 0: Berperilaku murni GREEDY (hanya menerima jika neighbor_cost > current_cost).
+        - Saat suhu T > 0 : Menerima 100% jika neighbor_cost > current_cost, dan menerima probabilistik jika lebih buruk.
+        """
         if temp is None:
             temp = self.temp
 
+        delta = neighbor_cost - current_cost
+        # greedy pas suhu 0
+        if temp <= 0.0:
+            accepted = neighbor_cost > current_cost
+            prob = 1.0 if accepted else 0.0
+            return accepted, prob
+
         if neighbor_cost > current_cost:
             return True, 1.0
-        
-        delta = neighbor_cost - current_cost
+
         prob = self.acceptance_probability(delta, temp)
         accepted = random.random() < prob
         return accepted, prob
+
 
     def optimize(self) -> TruckState:
         start_time = time.time()
@@ -176,15 +201,6 @@ class SimulatedAnnealing(StochasticHillClimbing):
         return self.best_state
 
     def get_stuck_metrics(self, streak_threshold: int = 5) -> dict:
-        """
-        Menghitung analisis frekuensi 'stuck' di local optima selama pencarian:
-        - rejected_moves: Jumlah langkah yang ditolak
-        - rejection_rate: Persentase penolakan langkah
-        - stuck_episodes: Berapa kali terjadi penolakan berturut-turut >= streak_threshold
-        - max_consecutive_stuck: Rekor penolakan berturut-turut terpanjang
-        - total_stuck_iterations: Total iterasi yang dihabiskan dalam status stuck
-        - stuck_percentage: Persentase iterasi dalam status stuck
-        """
         rejections = [1 if not h.get("accepted", False) else 0 for h in self.history[1:]]
         total_steps = len(rejections)
         if total_steps == 0:
