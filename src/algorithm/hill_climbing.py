@@ -193,12 +193,3 @@ class HillClimbing:
 
         self.execution_time = time.time() - start_time
         return self.best_state
-
-
-class SimpleHillClimbing(HillClimbing):
-    """
-    Kelas turunan Hill Climbing standar / klasik:
-    Heuristik penerimaan = Strictly Better (hanya menerima jika neighbor_cost > current_cost).
-    """
-    def should_accept(self, current_cost: float, neighbor_cost: float) -> bool:
-        return neighbor_cost > current_cost
