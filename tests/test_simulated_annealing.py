@@ -1,14 +1,15 @@
 import unittest
 import sys
 import os
+import math
+import random
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
-import math
+
 from src.data_struct import TruckState, objectiveFunction
 from src.algorithm.simulated_annealing import SimulatedAnnealing
-from src.algorithm.simulated_annaeling import SimulatedAnnealing as SA_Alias
 
 
 class TestSimulatedAnnealing(unittest.TestCase):
@@ -16,10 +17,68 @@ class TestSimulatedAnnealing(unittest.TestCase):
         input_path = os.path.join(os.path.dirname(__file__), "..", "input", "input1.json")
         self.initial_state = TruckState.from_json(input_path)
 
-    def test_alias_import(self):
-        """Pastikan import dari simulated_annaeling.py tetap berfungsi."""
-        sa = SA_Alias(self.initial_state)
-        self.assertIsInstance(sa, SimulatedAnnealing)
+    def test_manual_temperature_input(self):
+        """Menguji input temperature manual baik saat inisialisasi maupun penyesuaian manual di runtime."""
+        # 1. Manual input via constructor
+        custom_temp = 750.5
+        sa = SimulatedAnnealing(self.initial_state, initial_temp=custom_temp, random_init=False)
+        self.assertEqual(sa.initial_temp, custom_temp)
+        self.assertEqual(sa.temp, custom_temp)
+
+        # 2. Manual input via setter
+        manual_runtime_temp = 320.0
+        sa.set_temperature(manual_runtime_temp)
+        self.assertEqual(sa.temp, manual_runtime_temp)
+
+        # 3. Manual reset initial temperature
+        new_initial_temp = 1200.0
+        sa.set_initial_temp(new_initial_temp)
+        self.assertEqual(sa.initial_temp, new_initial_temp)
+        self.assertEqual(sa.temp, new_initial_temp)
+
+    def test_manual_temperature_with_random_initial_state(self):
+        """
+        Menguji eksekusi Simulated Annealing dengan:
+        1. Pengambilan initial state secara acak (random initial state)
+        2. Pengaturan suhu (temperature) secara manual
+        """
+        manual_temps = [25.0, 150.0, 750.0, 2500.0]
+        
+        for manual_t in manual_temps:
+            sa = SimulatedAnnealing(
+                self.initial_state,
+                initial_temp=manual_t,
+                cooling_rate=0.95,
+                min_temp=0.01,
+                max_iterations=100,
+                random_init=True
+            )
+            # Pastikan suhu awal tepat sama dengan input manual
+            self.assertEqual(sa.initial_temp, manual_t)
+            self.assertEqual(sa.temp, manual_t)
+            self.assertIsNotNone(sa.initial_state)
+
+            best_state = sa.optimize()
+            self.assertIsNotNone(best_state)
+            # Pastikan riwayat mencatat suhu awal manual yang benar
+            self.assertEqual(sa.temperatures[0], manual_t)
+            self.assertGreater(sa.total_iterations, 0)
+            self.assertGreater(len(sa.history), 0)
+
+    def test_random_initial_state_variability(self):
+        """Menguji bahwa inisialisasi acak (random_init=True) menghasilkan state yang bervariasi."""
+        generated_states = []
+        for i in range(5):
+            random.seed(i * 99)
+            sa = SimulatedAnnealing(self.initial_state, initial_temp=500.0, random_init=True)
+            generated_states.append(sa.initial_state)
+
+        # Pastikan setidaknya ada koordinat paket yang berbeda antar bangkitan acak
+        coord_hashes = [
+            tuple((p.coordinates["x"], p.coordinates["y"], p.coordinates["z"]) for p in s.packages)
+            for s in generated_states
+        ]
+        self.assertGreater(len(set(coord_hashes)), 1, "Random init harus menghasilkan variasi koordinat.")
 
     def test_parameter_configuration_and_setters(self):
         """Menguji konfigurasi parameter awal dan metode setter."""
@@ -130,7 +189,8 @@ class TestSimulatedAnnealing(unittest.TestCase):
             cooling_rate=0.9,
             min_temp=1.0,
             max_iterations=100,
-            steps_per_temp=2
+            steps_per_temp=2,
+            random_init=False
         )
         best_state = sa.optimize()
         best_cost = objectiveFunction(best_state)

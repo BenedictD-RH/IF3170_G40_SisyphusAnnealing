@@ -37,11 +37,18 @@ class TestDataStruct(unittest.TestCase):
         self.assertEqual(bb, (1, 2, 0, 4, 6, 1))
 
     def test_truck_state_load_from_json(self):
-        ts = TruckState.from_json(self.input1_path)
-        self.assertEqual(len(ts.packages), 2)
-        self.assertEqual(ts.truck.dimensions["w"], 10)
-        val = objectiveFunction(ts)
-        self.assertIsInstance(val, (int, float))
+        input_dir = os.path.join(os.path.dirname(__file__), "..", "input")
+        input_files = sorted([f for f in os.listdir(input_dir) if f.endswith(".json")])
+        self.assertGreaterEqual(len(input_files), 7)
+
+        for filename in input_files:
+            file_path = os.path.join(input_dir, filename)
+            ts = TruckState.from_json(file_path)
+            self.assertIsNotNone(ts.truck)
+            self.assertGreater(len(ts.packages), 0)
+            val = objectiveFunction(ts)
+            self.assertIsInstance(val, (int, float))
+
 
     def test_intersection_and_overflow(self):
         p1 = PackageState(

@@ -174,3 +174,58 @@ class SimulatedAnnealing(StochasticHillClimbing):
         self.total_iterations = iteration
         self.execution_time = time.time() - start_time
         return self.best_state
+
+    def get_stuck_metrics(self, streak_threshold: int = 5) -> dict:
+        """
+        Menghitung analisis frekuensi 'stuck' di local optima selama pencarian:
+        - rejected_moves: Jumlah langkah yang ditolak
+        - rejection_rate: Persentase penolakan langkah
+        - stuck_episodes: Berapa kali terjadi penolakan berturut-turut >= streak_threshold
+        - max_consecutive_stuck: Rekor penolakan berturut-turut terpanjang
+        - total_stuck_iterations: Total iterasi yang dihabiskan dalam status stuck
+        - stuck_percentage: Persentase iterasi dalam status stuck
+        """
+        rejections = [1 if not h.get("accepted", False) else 0 for h in self.history[1:]]
+        total_steps = len(rejections)
+        if total_steps == 0:
+            return {
+                "rejected_moves": 0,
+                "rejection_rate": 0.0,
+                "stuck_episodes": 0,
+                "max_consecutive_stuck": 0,
+                "total_stuck_iterations": 0,
+                "stuck_percentage": 0.0
+            }
+
+        cur_streak = 0
+        max_streak = 0
+        stuck_episodes = 0
+        total_stuck_iterations = 0
+
+        for r in rejections:
+            if r == 1:
+                cur_streak += 1
+                max_streak = max(max_streak, cur_streak)
+                if cur_streak == streak_threshold:
+                    stuck_episodes += 1
+                if cur_streak >= streak_threshold:
+                    total_stuck_iterations += 1
+            else:
+                cur_streak = 0
+
+        rejection_rate = (self.rejected_moves / total_steps) * 100.0 if total_steps > 0 else 0.0
+        stuck_pct = (total_stuck_iterations / total_steps) * 100.0 if total_steps > 0 else 0.0
+
+        return {
+            "rejected_moves": self.rejected_moves,
+            "rejection_rate": round(rejection_rate, 2),
+            "stuck_episodes": stuck_episodes,
+            "max_consecutive_stuck": max_streak,
+            "total_stuck_iterations": total_stuck_iterations,
+            "stuck_percentage": round(stuck_pct, 2)
+        }
+
+    def get_acceptance_probabilities(self) -> list[float]:
+        """Mengambil deret probabilitas e^(delta / T) untuk seluruh iterasi."""
+        return [h.get("probability", 1.0) for h in self.history]
+
