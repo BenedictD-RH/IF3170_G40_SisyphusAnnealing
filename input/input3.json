@@ -1,0 +1,104 @@
+{
+    "truck": {
+        "dimensions": {"w": 12, "l": 15, "h": 8},
+        "maxCapacity": 80
+    },
+    "packages": [
+        {
+            "package": {
+                "id": "Pkg01_Elektronik",
+                "dimensions": {"w": 4, "l": 4, "h": 2},
+                "value": 150,
+                "weight": 10,
+                "isFragile": true,
+                "eta": 1
+            },
+            "coordinates": {"x": 0, "y": 0, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {
+                "id": "Pkg02_Pakaian",
+                "dimensions": {"w": 5, "l": 6, "h": 3},
+                "value": 100,
+                "weight": 8,
+                "isFragile": false,
+                "eta": 3
+            },
+            "coordinates": {"x": 4, "y": 0, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {
+                "id": "Pkg03_Buku",
+                "dimensions": {"w": 3, "l": 5, "h": 2},
+                "value": 80,
+                "weight": 12,
+                "isFragile": false,
+                "eta": 2
+            },
+            "coordinates": {"x": 0, "y": 4, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {
+                "id": "Pkg04_Kaca",
+                "dimensions": {"w": 3, "l": 3, "h": 4},
+                "value": 220,
+                "weight": 7,
+                "isFragile": true,
+                "eta": 1
+            },
+            "coordinates": {"x": 3, "y": 6, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {
+                "id": "Pkg05_AlatDapur",
+                "dimensions": {"w": 4, "l": 5, "h": 2},
+                "value": 95,
+                "weight": 9,
+                "isFragile": false,
+                "eta": 4
+            },
+            "coordinates": {"x": 6, "y": 6, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {
+                "id": "Pkg06_MakananRingan",
+                "dimensions": {"w": 4, "l": 4, "h": 3},
+                "value": 60,
+                "weight": 4,
+                "isFragile": false,
+                "eta": 5
+            },
+            "coordinates": {"x": 0, "y": 9, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {
+                "id": "Pkg07_Sepatu",
+                "dimensions": {"w": 3, "l": 4, "h": 2},
+                "value": 110,
+                "weight": 5,
+                "isFragile": false,
+                "eta": 2
+            },
+            "coordinates": {"x": 4, "y": 11, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {
+                "id": "Pkg08_Mainan",
+                "dimensions": {"w": 3, "l": 3, "h": 2},
+                "value": 75,
+                "weight": 3,
+                "isFragile": false,
+                "eta": 4
+            },
+            "coordinates": {"x": 7, "y": 11, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        }
+    ]
+}

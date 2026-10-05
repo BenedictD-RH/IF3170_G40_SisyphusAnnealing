@@ -1,0 +1,28 @@
+{
+    "truck": {
+        "dimensions": {"w": 20, "l": 20, "h": 10},
+        "maxCapacity": 200
+    },
+    "packages": [
+        {"package": {"id": "Modular_01", "dimensions": {"w": 4, "l": 4, "h": 2}, "value": 100, "weight": 8, "isFragile": false, "eta": 1}, "coordinates": {"x": 0, "y": 0, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_02", "dimensions": {"w": 4, "l": 4, "h": 2}, "value": 100, "weight": 8, "isFragile": false, "eta": 1}, "coordinates": {"x": 4, "y": 0, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_03", "dimensions": {"w": 4, "l": 4, "h": 2}, "value": 100, "weight": 8, "isFragile": false, "eta": 2}, "coordinates": {"x": 8, "y": 0, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_04", "dimensions": {"w": 4, "l": 4, "h": 2}, "value": 100, "weight": 8, "isFragile": false, "eta": 2}, "coordinates": {"x": 12, "y": 0, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_05", "dimensions": {"w": 4, "l": 4, "h": 2}, "value": 100, "weight": 8, "isFragile": true, "eta": 3}, "coordinates": {"x": 16, "y": 0, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_06", "dimensions": {"w": 5, "l": 4, "h": 2}, "value": 120, "weight": 10, "isFragile": false, "eta": 2}, "coordinates": {"x": 0, "y": 4, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_07", "dimensions": {"w": 5, "l": 4, "h": 2}, "value": 120, "weight": 10, "isFragile": false, "eta": 2}, "coordinates": {"x": 5, "y": 4, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_08", "dimensions": {"w": 5, "l": 4, "h": 2}, "value": 120, "weight": 10, "isFragile": true, "eta": 4}, "coordinates": {"x": 10, "y": 4, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_09", "dimensions": {"w": 5, "l": 4, "h": 2}, "value": 120, "weight": 10, "isFragile": false, "eta": 4}, "coordinates": {"x": 15, "y": 4, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_10", "dimensions": {"w": 3, "l": 4, "h": 3}, "value": 85, "weight": 7, "isFragile": false, "eta": 3}, "coordinates": {"x": 0, "y": 8, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_11", "dimensions": {"w": 3, "l": 4, "h": 3}, "value": 85, "weight": 7, "isFragile": false, "eta": 3}, "coordinates": {"x": 3, "y": 8, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_12", "dimensions": {"w": 3, "l": 4, "h": 3}, "value": 85, "weight": 7, "isFragile": true, "eta": 1}, "coordinates": {"x": 6, "y": 8, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_13", "dimensions": {"w": 3, "l": 4, "h": 3}, "value": 85, "weight": 7, "isFragile": false, "eta": 5}, "coordinates": {"x": 9, "y": 8, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_14", "dimensions": {"w": 3, "l": 4, "h": 3}, "value": 85, "weight": 7, "isFragile": false, "eta": 5}, "coordinates": {"x": 12, "y": 8, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_15", "dimensions": {"w": 4, "l": 4, "h": 3}, "value": 110, "weight": 9, "isFragile": false, "eta": 2}, "coordinates": {"x": 15, "y": 8, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_16", "dimensions": {"w": 4, "l": 4, "h": 3}, "value": 110, "weight": 9, "isFragile": false, "eta": 2}, "coordinates": {"x": 0, "y": 12, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_17", "dimensions": {"w": 4, "l": 4, "h": 3}, "value": 110, "weight": 9, "isFragile": true, "eta": 1}, "coordinates": {"x": 4, "y": 12, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_18", "dimensions": {"w": 4, "l": 4, "h": 3}, "value": 110, "weight": 9, "isFragile": false, "eta": 4}, "coordinates": {"x": 8, "y": 12, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_19", "dimensions": {"w": 4, "l": 4, "h": 3}, "value": 110, "weight": 9, "isFragile": false, "eta": 4}, "coordinates": {"x": 12, "y": 12, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}},
+        {"package": {"id": "Modular_20", "dimensions": {"w": 4, "l": 4, "h": 3}, "value": 110, "weight": 9, "isFragile": false, "eta": 5}, "coordinates": {"x": 16, "y": 12, "z": 0}, "orientation": {"x": "w", "y": "l", "z": "h"}}
+    ]
+}

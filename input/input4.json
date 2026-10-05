@@ -1,0 +1,83 @@
+{
+    "truck": {
+        "dimensions": {"w": 20, "l": 30, "h": 12},
+        "maxCapacity": 150
+    },
+    "packages": [
+        {
+            "package": {"id": "Box01", "dimensions": {"w": 4, "l": 5, "h": 3}, "value": 130, "weight": 12, "isFragile": false, "eta": 1},
+            "coordinates": {"x": 0, "y": 0, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box02", "dimensions": {"w": 3, "l": 4, "h": 2}, "value": 90, "weight": 7, "isFragile": true, "eta": 2},
+            "coordinates": {"x": 4, "y": 0, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box03", "dimensions": {"w": 6, "l": 6, "h": 4}, "value": 210, "weight": 20, "isFragile": false, "eta": 1},
+            "coordinates": {"x": 7, "y": 0, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box04", "dimensions": {"w": 5, "l": 5, "h": 3}, "value": 150, "weight": 14, "isFragile": false, "eta": 3},
+            "coordinates": {"x": 13, "y": 0, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box05", "dimensions": {"w": 4, "l": 4, "h": 2}, "value": 110, "weight": 9, "isFragile": true, "eta": 4},
+            "coordinates": {"x": 0, "y": 6, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box06", "dimensions": {"w": 3, "l": 5, "h": 3}, "value": 85, "weight": 8, "isFragile": false, "eta": 5},
+            "coordinates": {"x": 4, "y": 6, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box07", "dimensions": {"w": 4, "l": 6, "h": 4}, "value": 175, "weight": 16, "isFragile": false, "eta": 2},
+            "coordinates": {"x": 7, "y": 6, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box08", "dimensions": {"w": 5, "l": 4, "h": 3}, "value": 125, "weight": 11, "isFragile": false, "eta": 3},
+            "coordinates": {"x": 11, "y": 6, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box09", "dimensions": {"w": 3, "l": 3, "h": 2}, "value": 70, "weight": 5, "isFragile": true, "eta": 1},
+            "coordinates": {"x": 16, "y": 6, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box10", "dimensions": {"w": 4, "l": 4, "h": 3}, "value": 105, "weight": 10, "isFragile": false, "eta": 4},
+            "coordinates": {"x": 0, "y": 12, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box11", "dimensions": {"w": 6, "l": 5, "h": 3}, "value": 190, "weight": 18, "isFragile": false, "eta": 2},
+            "coordinates": {"x": 4, "y": 12, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box12", "dimensions": {"w": 3, "l": 4, "h": 3}, "value": 80, "weight": 6, "isFragile": true, "eta": 5},
+            "coordinates": {"x": 10, "y": 12, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box13", "dimensions": {"w": 4, "l": 5, "h": 2}, "value": 115, "weight": 10, "isFragile": false, "eta": 3},
+            "coordinates": {"x": 13, "y": 12, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box14", "dimensions": {"w": 5, "l": 5, "h": 4}, "value": 160, "weight": 15, "isFragile": false, "eta": 1},
+            "coordinates": {"x": 0, "y": 18, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        },
+        {
+            "package": {"id": "Box15", "dimensions": {"w": 4, "l": 4, "h": 2}, "value": 95, "weight": 8, "isFragile": false, "eta": 4},
+            "coordinates": {"x": 5, "y": 18, "z": 0},
+            "orientation": {"x": "w", "y": "l", "z": "h"}
+        }
+    ]
+}
