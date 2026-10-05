@@ -1,4 +1,5 @@
 import json
+import math
 
 def to_dict(obj):
     if isinstance(obj, (list, tuple)):
@@ -111,6 +112,25 @@ def isStackedOn(top : PackageState, bottom : PackageState) :
 
     return top_bb[2] == (bottom_bb[5] - 1)
 
+def nearestSupportDistance(top : PackageState, support : PackageState) :
+    top_bb = top.getAbsoluteBB()
+    sprt_bb = support.getAbsoluteBB()
+
+    w = max(0, -min(sprt_bb[3] - 1 - top_bb[0], top_bb[3] - sprt_bb[0], top_bb[3] - top_bb[0], sprt_bb[3] - sprt_bb[0]))
+    l = max(0, -min(sprt_bb[4] - 1 - top_bb[1], top_bb[4] - sprt_bb[1], top_bb[4] - top_bb[1], sprt_bb[4] - sprt_bb[1]))
+    h = max(0, -min(sprt_bb[5] - top_bb[2], top_bb[5] - sprt_bb[2], top_bb[5] - top_bb[2], sprt_bb[5] - sprt_bb[2]))
+
+    return math.sqrt(pow(w, 2) + pow(l, 2) + pow(h, 2))
+
+def supportedArea(top : PackageState, support : PackageState) :
+    top_bb = top.getAbsoluteBB()
+    sprt_bb = support.getAbsoluteBB()
+    w = max(0, min(sprt_bb[3] - top_bb[0], top_bb[3] - sprt_bb[0], top_bb[3] - top_bb[0], sprt_bb[3] - sprt_bb[0]))
+    l = max(0, min(sprt_bb[4] - top_bb[1], top_bb[4] - sprt_bb[1], top_bb[4] - top_bb[1], sprt_bb[4] - sprt_bb[1]))
+    h = 1 if not(max(0, -min(sprt_bb[5] - top_bb[2], top_bb[5] - sprt_bb[2], top_bb[5] - top_bb[2], sprt_bb[5] - sprt_bb[2]))) else 0
+
+    return w * l * h
+
 
 class TruckState:
     def __init__(self, 
@@ -178,11 +198,19 @@ def objectiveFunction(state : TruckState) :
         if p.isInTruck(state.truck.dimensions) :
             weight += p.getWeight()
             maxValPerUnit = max(maxValPerUnit, p.getValuePerUnit())
+            nearestSupport = p.coordinates['z']
+            intersecting = 0
+            overflow = p.overflowVolume(state.truck.dimensions)
+            supportingArea = 0
             for q in state.packages :
                 if p.getID() != q.getID() and q.isInTruck(state.truck.dimensions) :
-                    value -= 2*p.getValuePerUnit()*intersectingArea(p, q)
-                #yg blm : floating, fragile, eta
-            value += p.getValue() - 2*p.overflowVolume(state.truck.dimensions)*p.getValuePerUnit()
+                    intersecting += intersectingArea(p, q)
+                    nearestSupport = min(nearestSupport, nearestSupportDistance(p, q))
+                    if p.isFragile() :
+                        supportingArea += supportedArea(q, p)
+                #yg blm : eta
+            valid = 0 if nearestSupport or intersecting or overflow or supportingArea else 1
+            value += p.getValue()*valid - 2*(overflow + nearestSupport + intersecting + supportingArea)*p.getValuePerUnit()
 
 
     return value - max(0, (weight - state.truck.maxCapacity)*maxValPerUnit)
