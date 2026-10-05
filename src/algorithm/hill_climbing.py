@@ -6,10 +6,14 @@ from src.data_struct import Truck, TruckState, PackageState, Package, objectiveF
 
 
 class HillClimbing:
-    def __init__(self, initial_state: TruckState, max_iterations: int = 1000, step_size: int = 2):
-        self.initial_state = copy.deepcopy(initial_state)
-        self.current_state = copy.deepcopy(initial_state)
-        self.best_state = copy.deepcopy(initial_state)
+    def __init__(self, initial_state: TruckState, max_iterations: int = 1000, step_size: int = 2, random_init: bool = True):
+        if random_init:
+            self.initial_state = initial_state.generate_random_state()
+        else:
+            self.initial_state = copy.deepcopy(initial_state)
+
+        self.current_state = copy.deepcopy(self.initial_state)
+        self.best_state = copy.deepcopy(self.initial_state)
         self.max_iterations = max_iterations
         self.step_size = step_size
         self.history: list[dict] = []
@@ -17,33 +21,73 @@ class HillClimbing:
         self.total_iterations: int = 0
         self.execution_time: float = 0.0
 
+    def rotate_90(self, orientation: dict[str, str], axis: str) -> dict[str, str]:
+        new_ori = dict(orientation)
+        if axis == "x":
+            new_ori["y"], new_ori["z"] = new_ori["z"], new_ori["y"]
+        elif axis == "y":
+            new_ori["x"], new_ori["z"] = new_ori["z"], new_ori["x"]
+        elif axis == "z":
+            new_ori["x"], new_ori["y"] = new_ori["y"], new_ori["x"]
+        return new_ori
+
     def get_neighbor(self, state: TruckState) -> TruckState:
-        """Menghasilkan tetangga dengan menggeser, merotasi, atau melompatkan posisi salah satu paket."""
         neighbor = copy.deepcopy(state)
-        if not neighbor.packages:
+        n_pkgs = len(neighbor.packages)
+        if n_pkgs == 0:
             return neighbor
 
-        pkg_state = random.choice(neighbor.packages)
-        action = random.choice(["move", "rotate", "jump"])
+        # Pilih salah satu dari 3 aksi yang diperbolehkan
+        actions = ["move", "rotate"]
+        if n_pkgs >= 2:
+            actions.append("swap")
 
-        if action == "move":
-            step = self.step_size
-            pkg_state.coordinates["x"] = max(0, pkg_state.coordinates["x"] + random.randint(-step, step))
-            pkg_state.coordinates["y"] = max(0, pkg_state.coordinates["y"] + random.randint(-step, step))
-            pkg_state.coordinates["z"] = max(0, pkg_state.coordinates["z"] + random.randint(-step, step))
+        action = random.choice(actions)
+        truck_dims = neighbor.truck.dimensions
+
+        if action == "swap":
+            # 1. Menukar dua paket, baik di dalam maupun di luar truk
+            i, j = random.sample(range(n_pkgs), 2)
+            p1 = neighbor.packages[i]
+            p2 = neighbor.packages[j]
+            p1.coordinates, p2.coordinates = copy.deepcopy(p2.coordinates), copy.deepcopy(p1.coordinates)
+            p1.orientation, p2.orientation = copy.deepcopy(p2.orientation), copy.deepcopy(p1.orientation)
+
+        elif action == "move":
+            # 2. Memindahkan sebuah paket ke suatu koordinat integer yang berbeda (di dalam atau di luar truk)
+            pkg = random.choice(neighbor.packages)
+            move_mode = random.choice(["shift", "random_inside", "toggle_outside"])
+
+            if move_mode == "shift" and pkg.coordinates["x"] >= 0:
+                # Pergeseran lokal di dalam truk
+                step = self.step_size
+                pkg.coordinates["x"] = max(0, min(truck_dims.get("w", 10) - 1, pkg.coordinates["x"] + random.randint(-step, step)))
+                pkg.coordinates["y"] = max(0, min(truck_dims.get("l", 10) - 1, pkg.coordinates["y"] + random.randint(-step, step)))
+                pkg.coordinates["z"] = max(0, min(truck_dims.get("h", 10) - 1, pkg.coordinates["z"] + random.randint(-step, step)))
+            elif move_mode == "random_inside" or (move_mode == "shift" and pkg.coordinates["x"] < 0):
+                # Pindahkan ke koordinat integer acak di dalam truk
+                pkg.coordinates = {
+                    "x": random.randint(0, max(0, truck_dims.get("w", 10) - 1)),
+                    "y": random.randint(0, max(0, truck_dims.get("l", 10) - 1)),
+                    "z": random.randint(0, max(0, truck_dims.get("h", 10) - 1))
+                }
+            elif move_mode == "toggle_outside":
+                if pkg.coordinates["x"] >= 0:
+                    # Keluarkan paket ke luar peti kemas truk
+                    pkg.coordinates = {"x": -1, "y": -1, "z": -1}
+                else:
+                    # Masukkan paket dari luar ke dalam truk
+                    pkg.coordinates = {
+                        "x": random.randint(0, max(0, truck_dims.get("w", 10) - 1)),
+                        "y": random.randint(0, max(0, truck_dims.get("l", 10) - 1)),
+                        "z": random.randint(0, max(0, truck_dims.get("h", 10) - 1))
+                    }
+
         elif action == "rotate":
-            dims = ["w", "l", "h"]
-            random.shuffle(dims)
-            pkg_state.orientation = {
-                "x": dims[0],
-                "y": dims[1],
-                "z": dims[2]
-            }
-        elif action == "jump":
-            truck_dim = neighbor.truck.dimensions
-            pkg_state.coordinates["x"] = random.randint(0, max(0, truck_dim.get("w", 10) - 1))
-            pkg_state.coordinates["y"] = random.randint(0, max(0, truck_dim.get("l", 10) - 1))
-            pkg_state.coordinates["z"] = random.randint(0, max(0, truck_dim.get("h", 10) - 1))
+            # 3. Merotasi paket 90° terhadap sumbu x, y, atau z
+            pkg = random.choice(neighbor.packages)
+            axis = random.choice(["x", "y", "z"])
+            pkg.orientation = self.rotate_90(pkg.orientation, axis)
 
         return neighbor
 

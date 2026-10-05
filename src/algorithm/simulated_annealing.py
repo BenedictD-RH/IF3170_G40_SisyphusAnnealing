@@ -8,31 +8,6 @@ from .stochastic_hill_climbing import StochasticHillClimbing
 
 
 class SimulatedAnnealing(StochasticHillClimbing):
-    """
-    Simulated Annealing Algorithm for 3D Cargo Packing Optimization.
-    
-    Parameters:
-    -----------
-    initial_state : TruckState
-        Initial packing state.
-    initial_temp : float, default=1000.0
-        Starting temperature (T0). Higher values accept more worse solutions early on.
-    cooling_rate : float, default=0.995
-        Rate at which temperature decreases.
-        For geometric: T = T * cooling_rate
-        For linear: T = T - cooling_rate
-        For logarithmic: scaling factor in denominator.
-    min_temp : float, default=0.001
-        Minimum stopping temperature.
-    max_iterations : int, default=1000
-        Maximum number of iterations allowed.
-    steps_per_temp : int, default=1
-        Number of candidate evaluations before applying cooling schedule (Markov chain length).
-    cooling_schedule : str or Callable, default="geometric"
-        Cooling strategy: "geometric" (or "exponential"), "linear", "logarithmic", "cosine", or custom function.
-    step_size : int, default=2
-        Step size parameter for neighbor coordinate shifts.
-    """
     def __init__(self, 
                  initial_state: TruckState, 
                  initial_temp: float = 1000.0, 
@@ -41,8 +16,9 @@ class SimulatedAnnealing(StochasticHillClimbing):
                  max_iterations: int = 1000,
                  steps_per_temp: int = 1,
                  cooling_schedule: Union[str, Callable[[float, int], float]] = "geometric",
-                 step_size: int = 2):
-        super().__init__(initial_state=initial_state, max_iterations=max_iterations, step_size=step_size)
+                 step_size: int = 2,
+                 random_init: bool = True):
+        super().__init__(initial_state=initial_state, max_iterations=max_iterations, step_size=step_size, random_init=random_init)
         self.initial_temp = float(initial_temp)
         self.temp = float(initial_temp)
         self.cooling_rate = float(cooling_rate)

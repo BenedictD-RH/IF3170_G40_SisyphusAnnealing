@@ -1,4 +1,6 @@
 import json
+import copy
+import random
 
 def to_dict(obj):
     if isinstance(obj, (list, tuple)):
@@ -134,6 +136,35 @@ class TruckState:
         with open(jsonPath, 'r', encoding='utf-8') as file:
             data = json.load(file)
         return cls(**data)
+
+    def generate_random_state(self, outside_prob: float = 0.2) -> "TruckState":
+        """
+        Menghasilkan kondisi awal acak (random initial state) untuk truk dan paket-paketnya.
+        Paket dapat ditempatkan di dalam truk atau di luar truk (koordinat (-1, -1, -1)).
+        Orientasi paket diacak 90 derajat pada sumbu x, y, z.
+        """
+        import random
+        rand_state = copy.deepcopy(self)
+        truck_dims = rand_state.truck.dimensions
+        axes_dims = ["w", "l", "h"]
+
+        for pkg in rand_state.packages:
+            # Acak orientasi dimensi
+            d = axes_dims.copy()
+            random.shuffle(d)
+            pkg.orientation = {"x": d[0], "y": d[1], "z": d[2]}
+
+            # Tentukan apakah berada di dalam atau di luar peti kemas
+            if random.random() < outside_prob:
+                pkg.coordinates = {"x": -1, "y": -1, "z": -1}
+            else:
+                pkg.coordinates = {
+                    "x": random.randint(0, max(0, truck_dims.get("w", 10) - 1)),
+                    "y": random.randint(0, max(0, truck_dims.get("l", 10) - 1)),
+                    "z": random.randint(0, max(0, truck_dims.get("h", 10) - 1))
+                }
+
+        return rand_state
 
 def getTotalValue(state : TruckState) :
     package_validity = [x.isFullyInTruck(state.truck.dimensions) for x in state.packages]
