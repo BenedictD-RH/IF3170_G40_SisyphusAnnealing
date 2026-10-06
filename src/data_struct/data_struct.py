@@ -240,7 +240,7 @@ def objectiveFunction(state : TruckState) :
                         supportingArea += supportedArea(q, p)
                 #yg blm : eta
             valid = 0 if nearestSupport or intersecting or overflow or supportingArea else 1
-            value += p.getValue()*valid - 2*(overflow + nearestSupport + intersecting + supportingArea)*p.getValuePerUnit()
+            value += p.getValue()*valid - 10*(overflow + nearestSupport + intersecting + supportingArea)*p.getValuePerUnit()
 
 
-    return value - max(0, (weight - state.truck.maxCapacity)*maxValPerUnit)
+    return value - max(0, (weight - state.truck.maxCapacity)*maxValPerUnit*10)
