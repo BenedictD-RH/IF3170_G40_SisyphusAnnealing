@@ -2,7 +2,7 @@ import time
 import math
 import random
 import copy
-from src.data_struct import Truck, TruckState, PackageState, Package, objectiveFunction
+from data_struct import Truck, TruckState, PackageState, Package, objectiveFunction
 
 
 class HillClimbing:
@@ -95,6 +95,7 @@ class HillClimbing:
     # buat HC steppest.sideway etc yang ngambil semua sample neighbor 
     def get_all_neighbors(self, state: TruckState) -> list[TruckState]:
         all_neighbors: list[TruckState] = []
+        selected_neighbors: list[TruckState] = []
         n_pkgs = len(state.packages)
         if n_pkgs == 0:
             return all_neighbors
@@ -117,33 +118,49 @@ class HillClimbing:
                 nbr.packages[i].orientation = self.rotate_90(nbr.packages[i].orientation, axis)
                 all_neighbors.append(nbr)
         step = max(1, self.step_size)
-        shifts = []
-        for dx in [-step, 0, step]:
-            for dy in [-step, 0, step]:
-                for dz in [-step, 0, step]:
-                    if dx != 0 or dy != 0 or dz != 0:
-                        shifts.append((dx, dy, dz))
+        space_matrix = state.getSpaceMatrix()
 
         for i in range(n_pkgs):
             pkg = state.packages[i]
-            if pkg.coordinates["x"] >= 0:
-                for dx, dy, dz in shifts:
-                    new_x = max(0, min(w_max, pkg.coordinates["x"] + dx))
-                    new_y = max(0, min(l_max, pkg.coordinates["y"] + dy))
-                    new_z = max(0, min(h_max, pkg.coordinates["z"] + dz))
-
-                    if (new_x, new_y, new_z) != (pkg.coordinates["x"], pkg.coordinates["y"], pkg.coordinates["z"]):
-                        nbr = copy.deepcopy(state)
-                        nbr.packages[i].coordinates = {"x": new_x, "y": new_y, "z": new_z}
-                        all_neighbors.append(nbr)
-
+            if pkg.isInTruck(state.truck.dimensions):
+                for x_start in range(0, w_max - pkg.package.dimensions[pkg.orientation['x']]) :
+                    for y_start in range(0, l_max - pkg.package.dimensions[pkg.orientation['y']]) :
+                        for z_start in range(0, h_max - pkg.package.dimensions[pkg.orientation['z']]) :
+                            if not space_matrix[x_start][y_start][z_start] or z_start == 0:
+                                nbr = copy.deepcopy(state)
+                                nbr.packages[i].coordinates = {"x": x_start, "y": y_start, "z": z_start}
+                                all_neighbors.append(nbr)
+                        
+                
                 nbr = copy.deepcopy(state)
                 nbr.packages[i].coordinates = {"x": -1, "y": -1, "z": -1}
                 all_neighbors.append(nbr)
+
             else:
-                nbr = copy.deepcopy(state)
-                nbr.packages[i].coordinates = {"x": 0, "y": 0, "z": 0}
-                all_neighbors.append(nbr)
+                for x_start in range(0, w_max - pkg.package.dimensions[pkg.orientation['x']]) :
+                    for y_start in range(0, l_max - pkg.package.dimensions[pkg.orientation['y']]) :
+                        for z_start in range(0, h_max - pkg.package.dimensions[pkg.orientation['z']]) :
+                            if not space_matrix[x_start][y_start][z_start] :
+                                nbr = copy.deepcopy(state)
+                                nbr.packages[i].coordinates = {"x": x_start, "y": y_start, "z": z_start}
+                                all_neighbors.append(nbr)
+                                # for axis in ["x", "y", "z"]:
+                                #     nbr2 = copy.deepcopy(nbr)
+                                #     nbr2.packages[i].orientation = self.rotate_90(nbr2.packages[i].orientation, axis)
+                                #     all_neighbors.append(nbr2)
+                                # for dx, dy, dz in shifts:
+                                #     new_x = max(0, min(w_max, dx))
+                                #     new_y = max(0, min(l_max, dy))
+                                #     new_z = max(0, min(h_max, dz))
+
+                                #     if (new_x, new_y, new_z) != (pkg.coordinates["x"], pkg.coordinates["y"], pkg.coordinates["z"]):
+                                #         nbr = copy.deepcopy(state)
+                                #         nbr.packages[i].coordinates = {"x": new_x, "y": new_y, "z": new_z}
+                                #         all_neighbors.append(nbr)
+            
+                
+
+        
 
         return all_neighbors
 

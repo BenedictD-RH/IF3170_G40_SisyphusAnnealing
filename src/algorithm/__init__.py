@@ -5,6 +5,7 @@ from .simulated_annealing import SimulatedAnnealing
 __all__ = [
     "HillClimbing",
     "StochasticHillClimbing",
-    "SimulatedAnnealing"
+    "SimulatedAnnealing",
+    "SteepestHillClimbing"
 ]
 
