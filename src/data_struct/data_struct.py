@@ -152,7 +152,7 @@ def supportedArea(top : PackageState, support : PackageState) :
     sprt_bb = support.getAbsoluteBB()
     w = max(0, min(sprt_bb[3] - top_bb[0], top_bb[3] - sprt_bb[0], top_bb[3] - top_bb[0], sprt_bb[3] - sprt_bb[0]))
     l = max(0, min(sprt_bb[4] - top_bb[1], top_bb[4] - sprt_bb[1], top_bb[4] - top_bb[1], sprt_bb[4] - sprt_bb[1]))
-    h = sprt_bb[5] - sprt_bb[2]
+    h = sprt_bb[5] - sprt_bb[2] if top_bb[2] == sprt_bb[5] else 0 
 
     return w * l * h
 
@@ -197,7 +197,10 @@ def contactAreaTruck(p : PackageState, truckdim) :
     if bb[4] == truckdim['l'] :
         total += w * h
     if bb[2] == 0 :
-        total += w * l * 2
+        if p.isFragile() :
+            total += w * l
+        else :
+            total += w * l * 2
 
     return total
 
@@ -229,7 +232,10 @@ class TruckState:
                 for x in range(bb[0], min(bb[3], self.truck.dimensions['w'])) :
                     for y in range(bb[1], min(bb[4], self.truck.dimensions['l'])) :
                         for z in range(bb[2], min(bb[5], self.truck.dimensions['h'])) :
-                            space_matrix[x][y][z] = 1
+                            if pkg.isFragile() :
+                                space_matrix[x][y][z] = -1
+                            else :
+                                space_matrix[x][y][z] = 1
 
         return space_matrix
 
@@ -305,6 +311,7 @@ def objectiveFunction(state : TruckState) :
     penalty = 0
     for p in state.packages :
         if p.isInTruck(state.truck.dimensions) :
+            weight += p.getWeight()
             maxValPerUnit = max(maxValPerUnit, p.getValuePerUnit())
             nearestSupport = p.coordinates['z']
             intersecting = 0
@@ -325,8 +332,8 @@ def objectiveFunction(state : TruckState) :
             fragilePlacement = (max_p_height - p.coordinates['z'])/max_p_height if p.isFragile() else 0
             valid = 0 if nearestSupport or supportingArea else 1
             value += p.getValue()*valid*(0.9 + 0.05*(surfaceContact)/p.getSurfaceArea() + 0.05*(1 - fragilePlacement)) 
-            penalty += (overflow*3 + nearestSupport + intersecting + supportingArea)*p.getValuePerUnit()
+            penalty += (overflow*2 + nearestSupport + intersecting + supportingArea)*p.getValuePerUnit()
 
-    value *= (0.975 + 0.025*float(truckTotalSurface)/state.truck.getSurfaceArea())
+    value *= (0.9975 + 0.0025*float(truckTotalSurface)/state.truck.getSurfaceArea())
     penalty += max(0, (weight - state.truck.maxCapacity)*maxValPerUnit*10)
     return value - penalty
