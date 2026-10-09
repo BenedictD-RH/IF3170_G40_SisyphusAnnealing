@@ -3,6 +3,7 @@ import math
 import random
 import copy
 from data_struct import Truck, TruckState, PackageState, Package, objectiveFunction
+from concurrent.futures import ThreadPoolExecutor
 
 
 class HillClimbing:
@@ -120,13 +121,15 @@ class HillClimbing:
         step = max(1, self.step_size)
         space_matrix = state.getSpaceMatrix()
 
+
+        
         for i in range(n_pkgs):
             pkg = state.packages[i]
             if pkg.isInTruck(state.truck.dimensions):
                 for x_start in range(0, w_max - pkg.package.dimensions[pkg.orientation['x']]) :
                     for y_start in range(0, l_max - pkg.package.dimensions[pkg.orientation['y']]) :
                         for z_start in range(0, h_max - pkg.package.dimensions[pkg.orientation['z']]) :
-                            if not space_matrix[x_start][y_start][z_start] or z_start == 0:
+                            if z_start == 0 or (not(space_matrix[x_start][y_start][z_start]) and space_matrix[x_start][y_start][z_start - 1] == 1) :
                                 nbr = copy.deepcopy(state)
                                 nbr.packages[i].coordinates = {"x": x_start, "y": y_start, "z": z_start}
                                 all_neighbors.append(nbr)
@@ -140,7 +143,7 @@ class HillClimbing:
                 for x_start in range(0, w_max - pkg.package.dimensions[pkg.orientation['x']]) :
                     for y_start in range(0, l_max - pkg.package.dimensions[pkg.orientation['y']]) :
                         for z_start in range(0, h_max - pkg.package.dimensions[pkg.orientation['z']]) :
-                            if not space_matrix[x_start][y_start][z_start] :
+                            if z_start == 0 or (not(space_matrix[x_start][y_start][z_start]) and space_matrix[x_start][y_start][z_start - 1] == 1) :
                                 nbr = copy.deepcopy(state)
                                 nbr.packages[i].coordinates = {"x": x_start, "y": y_start, "z": z_start}
                                 all_neighbors.append(nbr)
