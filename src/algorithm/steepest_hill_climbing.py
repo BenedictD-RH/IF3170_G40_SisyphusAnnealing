@@ -1,17 +1,14 @@
 from .hill_climbing import HillClimbing, TruckState
-from src.data_struct import objectiveFunction, TruckState
+from data_struct import objectiveFunction, TruckState
 import math
 import time
 import copy
 
 
 class SteepestHillClimbing(HillClimbing):
-    def __init__(self, initial_state: TruckState, max_iterations: int = 1000, step_size: int = 2, temperature: float = 1.0, random_init: bool = True):
+    def __init__(self, initial_state: TruckState, max_iterations: int = 1000, step_size: int = 2, random_init: bool = True):
         super().__init__(initial_state=initial_state, max_iterations=max_iterations, step_size=step_size, random_init=random_init)
-        self.temperature = float(temperature)
 
-
-    
     def optimize(self) -> TruckState:
             start_time = time.time()
             current_cost = objectiveFunction(self.current_state)
@@ -57,7 +54,6 @@ class SteepestHillClimbing(HillClimbing):
                     "best_cost": best_cost,
                     "accepted": accepted
                 })
-                print(current_cost)
                 
     
             self.execution_time = time.time() - start_time

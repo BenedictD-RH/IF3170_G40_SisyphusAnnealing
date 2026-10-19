@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from operator import itemgetter
-from src.data_struct import Truck, TruckState, Package, PackageState, objectiveFunction
+from data_struct import Truck, TruckState, Package, PackageState, objectiveFunction
 
 class AxisPermutation(Enum):
     XYZ = (0, 1, 2)

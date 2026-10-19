@@ -3,7 +3,7 @@ import math
 import random
 import copy
 from typing import Callable, Optional, Union
-from src.data_struct import TruckState, objectiveFunction
+from data_struct import TruckState, objectiveFunction
 from .stochastic_hill_climbing import StochasticHillClimbing
 
 

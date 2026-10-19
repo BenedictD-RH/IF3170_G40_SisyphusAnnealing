@@ -3,7 +3,7 @@ import math
 import random
 import copy
 
-from src.data_struct import Truck, TruckState, PackageState, Package, objectiveFunction
+from data_struct import Truck, TruckState, PackageState, Package, objectiveFunction
 from concurrent.futures import ThreadPoolExecutor
 
 class HillClimbing:

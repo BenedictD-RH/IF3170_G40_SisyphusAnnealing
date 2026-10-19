@@ -8,7 +8,7 @@ from .data_struct import (
     intersectingArea,
     isIntersecting,
     isStackedOn,
-
+    isValid
 )
 
 __all__ = [
@@ -21,5 +21,5 @@ __all__ = [
     "intersectingArea",
     "isIntersecting",
     "isStackedOn",
-    
+    "isValid"
 ]

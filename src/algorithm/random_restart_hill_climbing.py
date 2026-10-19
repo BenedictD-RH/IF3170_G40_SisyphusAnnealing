@@ -1,12 +1,12 @@
 from .hill_climbing import HillClimbing, TruckState
-from src.data_struct import objectiveFunction, TruckState
+from data_struct import objectiveFunction, TruckState
 import math
 import time
 import copy
 
 class RandomRestartHillClimbing(HillClimbing):
-    def __init__(self, initial_state: TruckState, max_restarts: int = 10):
-        super().__init__(initial_state)
+    def __init__(self, initial_state: TruckState, max_iterations: int = 1000, step_size: int = 2, random_init: bool = True, max_restarts: int = 10):
+        super().__init__(initial_state=initial_state, max_iterations=max_iterations, step_size=step_size, random_init=random_init)
         self.max_restarts = max_restarts
     def random_initial_state(self) -> TruckState:
         """Generate a random initial state."""

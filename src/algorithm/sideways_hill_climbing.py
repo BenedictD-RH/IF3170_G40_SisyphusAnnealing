@@ -1,13 +1,13 @@
 from .hill_climbing import HillClimbing, TruckState
-from src.data_struct import objectiveFunction, TruckState
+from data_struct import objectiveFunction, TruckState
 import math
 import time
 import copy
 
 
 class SidewaysHillClimbing(HillClimbing):
-    def __init__(self, initial_state: TruckState, max_sideways_moves: int = 100):
-        super().__init__(initial_state)
+    def __init__(self, initial_state: TruckState, max_iterations: int = 1000, step_size: int = 2, random_init: bool = True, max_sideways_moves: int = 100):
+        super().__init__(initial_state=initial_state, max_iterations=max_iterations, step_size=step_size, random_init=random_init)
         self.max_sideways_moves = max_sideways_moves
 
     def optimize(self) -> TruckState:

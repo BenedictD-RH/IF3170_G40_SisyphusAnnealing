@@ -330,22 +330,47 @@ def getTotalValue(state : TruckState) :
                     if isBehindOrBelow(p, q) and p.getETA() < q.getETA() :
                         lateness = max(lateness, q.getETA() - p.getETA())
                 
-            valid = 0 if nearestSupport or overflow or intersecting or supportingArea or lateness else 1
-            if not valid :
-                print(p.getID())
-                print("intersecting : " + str(intersecting))
-                print("nearestSupport : " + str(nearestSupport))
-                print("overflow : " + str(overflow))
-                print("supportingArea : " + str(supportingArea))
-                print("lateness : " + str(lateness))
+            valid = 0 if nearestSupport or overflow or intersecting or supportingArea else 1
+            # if not valid :
+            #     print(p.getID())
+            #     print("intersecting : " + str(intersecting))
+            #     print("nearestSupport : " + str(nearestSupport))
+            #     print("overflow : " + str(overflow))
+            #     print("supportingArea : " + str(supportingArea))
+            #     print("lateness : " + str(lateness))
 
             value += p.getValue()*valid
-        else :
-            print(p.getID())
-            print(p.coordinates)
+        # else :
+            # print(p.getID())
+            # print(p.coordinates)
 
 
     return value
+
+def isValid(state : TruckState) :
+    value = 0.0
+    for p in state.packages :
+        if p.isInTruck(state.truck.dimensions) :
+            nearestSupport = p.coordinates['z']
+            intersecting = 0
+            overflow = p.overflowVolume(state.truck.dimensions)
+            supportingArea = 0
+            lateness = 0
+            for q in state.packages :
+                if p.getID() != q.getID() and q.isInTruck(state.truck.dimensions) :
+                    intersecting += intersectingArea(p, q)*0.25
+                    if canBeSupport(p, q, state.truck.dimensions) :
+                        nearestSupport = min(nearestSupport, nearestSupportDistance(p, q))
+                    if p.isFragile() :
+                        supportingArea += supportedArea(q, p)
+                    if isBehindOrBelow(p, q) and p.getETA() < q.getETA() :
+                        lateness = max(lateness, q.getETA() - p.getETA())
+                
+            valid = 0 if nearestSupport or overflow or intersecting or supportingArea else 1
+            if not valid : 
+                return False
+
+    return True
 
 def getTotalWeight(state : TruckState) :
     weight = 0
