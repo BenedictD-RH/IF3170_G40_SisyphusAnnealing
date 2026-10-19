@@ -1,6 +1,7 @@
 import random
 import copy
 import math
+import time
 from dataclasses import dataclass
 from enum import Enum
 from operator import itemgetter
@@ -426,10 +427,8 @@ class GAResult:
     initial_state: TruckState
     final_state: TruckState
     final_fitness: float
-    best_feasible_chromosome: Chromosome
     history: list[GenerationStats]
-    final_population: list[Chromosome]
-    final_fitnesses: list[float]
+    duration: float
 
 
 @dataclass
@@ -468,6 +467,7 @@ def genetic_algorithm(initial_state: TruckState, population_size: int = 100,
                       package_mutation_probability: float = 0.20,
                       placement_mutation_probability: float = 0.05,
                       seed: int | None = None) -> GAResult:
+    start_time = time.time()
     rng = random.Random(seed)
     
     packages = [item.package for item in initial_state.packages]
@@ -509,5 +509,6 @@ def genetic_algorithm(initial_state: TruckState, population_size: int = 100,
             population, initial_state.truck, packages, record, generation)
         history.append(stats)
 
-    return GAResult(initial_decoded, record.state, record.fitness,
-                    record.chromosome, history, population, fitnesses)
+    duration = time.time() - start_time
+
+    return GAResult(initial_decoded, record.state, record.fitness, history, duration)
