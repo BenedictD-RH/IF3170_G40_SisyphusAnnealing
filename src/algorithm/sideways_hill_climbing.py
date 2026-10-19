@@ -1,5 +1,5 @@
 from .hill_climbing import HillClimbing, TruckState
-from data_struct import objectiveFunction, TruckState
+from src.data_struct import objectiveFunction, TruckState
 import math
 import time
 import copy
@@ -10,35 +10,61 @@ class SidewaysHillClimbing(HillClimbing):
         super().__init__(initial_state)
         self.max_sideways_moves = max_sideways_moves
 
-    def search(self):
-        current_state = self.initial_state
-        current_value = objectiveFunction(current_state)
+    def optimize(self) -> TruckState:
+        start_time = time.time()
+        current_cost = objectiveFunction(self.current_state)
+        best_cost = current_cost
         sideways_moves = 0
 
-        while True:
-            neighbors = self.get_neighbors(current_state)
-            best_neighbor = None
-            best_value = current_value
+        self.history = [{
+            "iteration": 0,
+            "current_cost": current_cost,
+            "best_cost": best_cost,
+            "accepted": True
+        }]
+        self.accepted_moves = 0
+        self.total_iterations = 0
 
-            for neighbor in neighbors:
-                neighbor_value = objectiveFunction(neighbor)
-                if neighbor_value < best_value:
-                    best_neighbor = neighbor
-                    best_value = neighbor_value
+        for i in range(1, self.max_iterations + 1):
+            self.total_iterations = i
+            neighbors = self.get_all_neighbors(self.current_state)
+            best_neighbor = -1
+            best_neighbor_val = current_cost
 
-            if best_neighbor is None:
-                # No better neighbor found
-                break
+            for j in range(len(neighbors)):
+                neighbor_cost = objectiveFunction(neighbors[j])
 
-            if best_value == current_value:
-                # Sideways move
-                sideways_moves += 1
+                if neighbor_cost > best_neighbor_val:
+                    best_neighbor = j
+                    best_neighbor_val = neighbor_cost
+
+            accepted = best_neighbor != -1
+
+            if accepted:
+                if best_neighbor_val == current_cost:
+                    sideways_moves += 1
+                else:
+                    sideways_moves = 0
+
                 if sideways_moves > self.max_sideways_moves:
                     break
+
+                self.current_state = neighbors[best_neighbor]
+                current_cost = objectiveFunction(self.current_state)
+                self.accepted_moves += 1
+
+                if current_cost > best_cost:
+                    self.best_state = copy.deepcopy(self.current_state)
+                    best_cost = current_cost
             else:
-                sideways_moves = 0 
+                break
 
-            current_state = best_neighbor
-            current_value = best_value
-
-        return current_state, current_value
+            self.history.append({
+                "iteration": i,
+                "current_cost": current_cost,
+                "best_cost": best_cost,
+                "accepted": accepted
+            })
+        self.execution_time = time.time() - start_time
+        return self.best_state
+    

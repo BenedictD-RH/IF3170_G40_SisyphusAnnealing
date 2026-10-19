@@ -2,9 +2,9 @@ import time
 import math
 import random
 import copy
-from data_struct import Truck, TruckState, PackageState, Package, objectiveFunction
-from concurrent.futures import ThreadPoolExecutor
 
+from src.data_struct import Truck, TruckState, PackageState, Package, objectiveFunction
+from concurrent.futures import ThreadPoolExecutor
 
 class HillClimbing:
     def __init__(self, initial_state: TruckState, max_iterations: int = 1000, step_size: int = 2, random_init: bool = True):
