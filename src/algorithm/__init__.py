@@ -6,6 +6,7 @@ __all__ = [
     "HillClimbing",
     "StochasticHillClimbing",
     "SimulatedAnnealing",
-    "SteepestHillClimbing"
+    "SteepestHillClimbing",
+    "SidewaysHillClimbing"
 ]
 
