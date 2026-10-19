@@ -126,13 +126,14 @@ class HillClimbing:
         for i in range(n_pkgs):
             pkg = state.packages[i]
             if pkg.isInTruck(state.truck.dimensions):
-                for x_start in range(0, w_max - pkg.package.dimensions[pkg.orientation['x']]) :
-                    for y_start in range(0, l_max - pkg.package.dimensions[pkg.orientation['y']]) :
-                        for z_start in range(0, h_max - pkg.package.dimensions[pkg.orientation['z']]) :
+                for x_start in range(0, w_max - pkg.package.dimensions[pkg.orientation['x']] + 1) :
+                    for y_start in range(0, l_max - pkg.package.dimensions[pkg.orientation['y']] + 1) :
+                        for z_start in range(0, h_max - pkg.package.dimensions[pkg.orientation['z']] + 1) :
                             if z_start == 0 or (not(space_matrix[x_start][y_start][z_start]) and space_matrix[x_start][y_start][z_start - 1] == 1) :
                                 nbr = copy.deepcopy(state)
                                 nbr.packages[i].coordinates = {"x": x_start, "y": y_start, "z": z_start}
                                 all_neighbors.append(nbr)
+                                
                         
                 
                 nbr = copy.deepcopy(state)
@@ -140,9 +141,9 @@ class HillClimbing:
                 all_neighbors.append(nbr)
 
             else:
-                for x_start in range(0, w_max - pkg.package.dimensions[pkg.orientation['x']]) :
-                    for y_start in range(0, l_max - pkg.package.dimensions[pkg.orientation['y']]) :
-                        for z_start in range(0, h_max - pkg.package.dimensions[pkg.orientation['z']]) :
+                for x_start in range(0, w_max - pkg.package.dimensions[pkg.orientation['x']] + 1) :
+                    for y_start in range(0, l_max - pkg.package.dimensions[pkg.orientation['y']] + 1) :
+                        for z_start in range(0, h_max - pkg.package.dimensions[pkg.orientation['z']] + 1) :
                             if z_start == 0 or (not(space_matrix[x_start][y_start][z_start]) and space_matrix[x_start][y_start][z_start - 1] == 1) :
                                 nbr = copy.deepcopy(state)
                                 nbr.packages[i].coordinates = {"x": x_start, "y": y_start, "z": z_start}

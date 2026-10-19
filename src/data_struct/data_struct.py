@@ -108,11 +108,30 @@ class PackageState:
     def getWeight(self) :
         return self.package.weight
 
+    def getETA(self) :
+        return self.package.eta
+
     def getValuePerUnit(self) :
         return float(self.package.value)/self.package.getVolume()
 
     def getSurfaceArea(self) :
         return self.package.getSurfaceArea()
+
+    def getStateString(self) :
+        x = self.coordinates["x"]
+        y = self.coordinates["y"]
+        z = self.coordinates["z"]
+        w = self.package.dimensions[self.orientation["x"]]
+        l = self.package.dimensions[self.orientation["y"]]
+        h = self.package.dimensions[self.orientation["z"]]
+        return f"""ID = {self.getID()}
+        Coordinates = (x: {x}, y: {y}, z: {z})
+        Orientation = (x: {self.orientation["x"]}, y: {self.orientation["y"]}, z: {self.orientation["z"]})
+        Dimensions = (w: {w}, l: {l}, h: {h})
+        Value = {self.getValue()}
+        Weight = {self.getWeight()}
+        Fragile = {self.isFragile()}
+        ETA = {self.getETA()}"""
 
     
 def intersectingArea(p1 : PackageState, p2 : PackageState) :
@@ -204,6 +223,35 @@ def contactAreaTruck(p : PackageState, truckdim) :
 
     return total
 
+def isBehindOrBelow(p1 : PackageState, p2 : PackageState) :
+    bb1 = p1.getAbsoluteBB()
+    bb2 = p2.getAbsoluteBB()
+    w = max(0, min(bb2[3] - bb1[0], bb1[3] - bb2[0], bb1[3] - bb1[0], bb2[3] - bb2[0]))
+    l = max(0, min(bb2[4] - bb1[1], bb1[4] - bb2[1], bb1[4] - bb1[1], bb2[4] - bb2[1]))
+    h = max(0, min(bb2[5] - bb1[2], bb1[5] - bb2[2], bb1[5] - bb1[2], bb2[5] - bb2[2]))
+
+    if l * h and bb1[0] > bb2[0] :
+        return True
+
+    if w * l and bb1[2] < bb2[2] :
+        return True
+
+    return False
+
+def getETAWeight(p : PackageState, truckdim, maxETA) :
+    x = p.coordinates["x"]
+    y = p.coordinates["y"]
+    z = p.coordinates["z"]
+    w = p.package.dimensions[p.orientation["x"]]
+    l = p.package.dimensions[p.orientation["y"]]
+    h = p.package.dimensions[p.orientation["z"]]        
+    max_w = truckdim['w']
+    max_l = truckdim['l']
+    max_h = truckdim['h']
+
+    return (1 - abs(float(x)/(max_w - w) - (float(p.getETA())/maxETA))) * (1 - abs((float(max_h - (z + h))/(max_h)) - (float(p.getETA())/maxETA)))
+
+    
 
 class TruckState:
     def __init__(self, 
@@ -271,6 +319,7 @@ def getTotalValue(state : TruckState) :
             intersecting = 0
             overflow = p.overflowVolume(state.truck.dimensions)
             supportingArea = 0
+            lateness = 0
             for q in state.packages :
                 if p.getID() != q.getID() and q.isInTruck(state.truck.dimensions) :
                     intersecting += intersectingArea(p, q)*0.25
@@ -278,14 +327,17 @@ def getTotalValue(state : TruckState) :
                         nearestSupport = min(nearestSupport, nearestSupportDistance(p, q))
                     if p.isFragile() :
                         supportingArea += supportedArea(q, p)
-                #yg blm : eta
-            valid = 0 if nearestSupport or overflow or intersecting or supportingArea else 1
+                    if isBehindOrBelow(p, q) and p.getETA() < q.getETA() :
+                        lateness = max(lateness, q.getETA() - p.getETA())
+                
+            valid = 0 if nearestSupport or overflow or intersecting or supportingArea or lateness else 1
             if not valid :
                 print(p.getID())
                 print("intersecting : " + str(intersecting))
                 print("nearestSupport : " + str(nearestSupport))
                 print("overflow : " + str(overflow))
                 print("supportingArea : " + str(supportingArea))
+                print("lateness : " + str(lateness))
 
             value += p.getValue()*valid
         else :
@@ -309,6 +361,10 @@ def objectiveFunction(state : TruckState) :
     maxValPerUnit = 0
     truckTotalSurface = 0
     penalty = 0
+    maxETA = 0
+    for p in state.packages :
+        maxETA = max(maxETA, p.getETA())
+
     for p in state.packages :
         if p.isInTruck(state.truck.dimensions) :
             weight += p.getWeight()
@@ -319,19 +375,27 @@ def objectiveFunction(state : TruckState) :
             supportingArea = 0
             surfaceContact = contactAreaTruck(p, state.truck.dimensions)
             truckTotalSurface += contactAreaTruck(p, state.truck.dimensions)
+            amount = 0
+            late_amount = 0
             for q in state.packages :
                 if p.getID() != q.getID() and q.isInTruck(state.truck.dimensions) :
-                    intersecting += intersectingArea(p, q)
+                    intersecting += intersectingArea(p, q)*0.25
                     if canBeSupport(p, q, state.truck.dimensions) :
                         nearestSupport = min(nearestSupport, nearestSupportDistance(p, q))
                     if p.isFragile() :
                         supportingArea += supportedArea(q, p)
                     surfaceContact += contactArea(p, q)
-                #yg blm : eta
+                    if isBehindOrBelow(p, q) :
+                        amount += 1
+                        if p.getETA() < q.getETA() :
+                            late_amount += 1
+                        
             max_p_height = state.truck.dimensions['h'] - p.package.dimensions[p.orientation['z']]
             fragilePlacement = (max_p_height - p.coordinates['z'])/max_p_height if p.isFragile() else 0
             valid = 0 if nearestSupport or supportingArea else 1
-            value += p.getValue()*valid*(0.9 + 0.05*(surfaceContact)/p.getSurfaceArea() + 0.05*(1 - fragilePlacement)) 
+            lateness = (1 - late_amount/amount) if amount > 0 else 1
+            multiplier = (0.9 + 0.05*(surfaceContact)/p.getSurfaceArea() + 0.05*(1 - fragilePlacement))
+            value += p.getValue()*valid*multiplier
             penalty += (overflow*2 + nearestSupport + intersecting + supportingArea)*p.getValuePerUnit()
 
     value *= (0.9975 + 0.0025*float(truckTotalSurface)/state.truck.getSurfaceArea())
