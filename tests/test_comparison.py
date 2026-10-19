@@ -9,7 +9,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from src.data_struct import TruckState, objectiveFunction
-from src.algorithm import HillClimbing, StochasticHillClimbing, SimulatedAnnealing
+from src.algorithm import HillClimbing, StochasticHillClimbing, SimulatedAnnealing, SteepestHillClimbing, SidewaysHillClimbing,RandomRestartHillClimbing
 
 
 def run_benchmark_for_file(input_path: str, iterations: int = 150, runs: int = 3, seed: int = 42) -> list[dict]:
@@ -40,7 +40,10 @@ def run_benchmark_for_file(input_path: str, iterations: int = 150, runs: int = 3
         )),
         ("Simulated Annealing (T0=1000, Logarithmic)", lambda ts: SimulatedAnnealing(
             ts, initial_temp=1000.0, cooling_rate=1.0, min_temp=0.01, max_iterations=iterations, cooling_schedule="logarithmic", random_init=True
-        ))
+        )),
+
+        ("Random Restart HC", lambda ts: RandomRestartHillClimbing(ts, max_restarts=10))
+
     ]
 
     results = []
