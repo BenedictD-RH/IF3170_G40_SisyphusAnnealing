@@ -222,23 +222,32 @@ def placement_algorithm(placement_order : AxisPermutation, extreme_points : set[
         for cur_orientation in orientation_order:
             cur_package_bounding_box = AABB(cur_extreme_point, cur_package_data.dimensions, cur_orientation)
 
-            # check for collision with previously placed box
+            # reject packages extending beyond the truck.
+            if (
+                cur_package_bounding_box.x_max > truck.dimensions["w"]
+                or cur_package_bounding_box.y_max > truck.dimensions["l"]
+                or cur_package_bounding_box.z_max > truck.dimensions["h"]):
+                continue
+
+            # reject overlapping packages.
+            if any(detect_box_collision(cur_package_bounding_box, occupied.box) for occupied in occupied_space):
+                continue
+
+            # check support.
             supported = cur_package_bounding_box.z_min == 0
+
             if not supported:
                 for occupied in occupied_space:
                     support_box = occupied.box
+
                     if (not occupied.is_fragile
-                            and support_box.z_max == cur_package_bounding_box.z_min
-                            and min(support_box.x_max, cur_package_bounding_box.x_max)
-                            > max(support_box.x_min, cur_package_bounding_box.x_min)
-                            and min(support_box.y_max, cur_package_bounding_box.y_max)
-                            > max(support_box.y_min, cur_package_bounding_box.y_min)):
+                        and support_box.z_max == cur_package_bounding_box.z_min
+                        and min(support_box.x_max, cur_package_bounding_box.x_max) > max(support_box.x_min, cur_package_bounding_box.x_min)
+                        and min(support_box.y_max, cur_package_bounding_box.y_max) > max(support_box.y_min, cur_package_bounding_box.y_min)):
                         supported = True
                         break
-            if (not any(detect_box_collision(cur_package_bounding_box, occupied.box) for occupied in occupied_space) and
-                cur_package_bounding_box.x_max <= truck.dimensions["w"] and
-                cur_package_bounding_box.y_max <= truck.dimensions["l"] and
-                cur_package_bounding_box.z_max <= truck.dimensions["h"] and supported):
+
+            if supported:
                 placed = True
                 chosen_orientation = cur_orientation
                 break
