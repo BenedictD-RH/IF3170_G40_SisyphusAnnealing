@@ -50,11 +50,8 @@ class SidewaysHillClimbing(HillClimbing):
                 else:
                     sideways_moves = 0
 
-                if sideways_moves > self.max_sideways_moves:
-                    break
-
                 self.current_state = neighbors[best_neighbor]
-                current_cost = objectiveFunction(self.current_state)
+                current_cost = best_neighbor_val
                 self.accepted_moves += 1
 
                 if current_cost > best_cost:
@@ -69,6 +66,10 @@ class SidewaysHillClimbing(HillClimbing):
                 "best_cost": best_cost,
                 "accepted": accepted
             })
+
+            if sideways_moves >= self.max_sideways_moves:
+                break
+            
         self.execution_time = time.time() - start_time
         return self.best_state
     
