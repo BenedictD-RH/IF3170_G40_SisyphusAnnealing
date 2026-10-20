@@ -165,8 +165,9 @@ def run_optimization_worker(params):
             final = res.final_state
             dur = res.duration
             if hasattr(res, "history"):
-                for entry in res.history:
-                    hist.append(entry.best_feasible_fitness)
+                hist = {"maximum": [entry.maximum_fitness for entry in res.history],
+                        "mean": [entry.mean_fitness for entry in res.history],
+                        "best_feasible": [s.best_feasible_fitness for s in res.history]}
 
         if final is not None:
             optimization_data["finalState"] = final

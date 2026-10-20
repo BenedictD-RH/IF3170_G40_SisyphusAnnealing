@@ -388,8 +388,15 @@ def plot_history(history) :
         "try:\n"
         "    data = json.loads(sys.stdin.read())\n"
         "    fig, ax = plt.subplots(figsize=(7, 4.5))\n"
-        "    ax.plot(range(len(data)), data, marker='o', markersize=2, color='tab:blue')\n"
-        "    ax.set_xlabel('Iteration')\n"
+        "    if isinstance(data, dict):\n"
+        "        ax.plot(data['maximum'], label='Maximum population fitness')\n"
+        "        ax.plot(data['mean'], label='Mean population fitness')\n"
+        "        ax.plot(data['best_feasible'], label='Best feasible', linestyle='--')\n"
+        "        ax.set_xlabel('Generation')\n"
+        "        ax.legend()\n"
+        "    else:\n"
+        "        ax.plot(range(len(data)), data, marker='o', markersize=2, color='tab:blue')\n"
+        "        ax.set_xlabel('Iteration')\n"
         "    ax.set_ylabel('Objective')\n"
         "    ax.set_title('Optimization History')\n"
         "    ax.grid(True, linestyle='--', alpha=0.6)\n"
@@ -401,7 +408,7 @@ def plot_history(history) :
 
     try:
         proc = subprocess.Popen([sys.executable, "-c", plot_script], stdin=subprocess.PIPE, text=True)
-        proc.stdin.write(json.dumps(list(history)))
+        proc.stdin.write(json.dumps(history))
         proc.stdin.close()
     except Exception as e:
         print(f"[ERROR] Failed to launch plot subprocess: {e}")
