@@ -4,7 +4,10 @@ try:
 except ImportError:
     from plotter import launch_plot_subprocess, show_plot
 
+_mouse_uses_render_coords = False
+
 def get_ui_mouse_position() -> rl.Vector2:
+    global _mouse_uses_render_coords
     mouse = rl.get_mouse_position()
     sw = rl.get_screen_width()
     sh = rl.get_screen_height()
@@ -14,8 +17,11 @@ def get_ui_mouse_position() -> rl.Vector2:
     if sw > 0 and sh > 0 and rw > 0 and rh > 0:
         scale_x = rw / sw
         scale_y = rh / sh
-        if (mouse.x > sw or mouse.y > sh) and scale_x > 0 and scale_y > 0:
-            return rl.Vector2(mouse.x / scale_x, mouse.y / scale_y)
+        if scale_x > 1.05 or scale_y > 1.05:
+            if mouse.x > sw or mouse.y > sh:
+                _mouse_uses_render_coords = True
+            if _mouse_uses_render_coords:
+                return rl.Vector2(mouse.x / scale_x, mouse.y / scale_y)
     return mouse
 
 
@@ -90,21 +96,30 @@ class Button:
         self.enabled = True
 
     def draw(self):
-        if self.enabled :
-            mouse_pos = get_ui_mouse_position()
-            hover = rl.check_collision_point_rec(mouse_pos, self.bb)
-            clicked = hover and rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
-
-            if clicked and self.on_click:
-                self.on_click()
-
-            rl.draw_rectangle_rec(self.bb, self.hover_color if hover else self.color)
-
-            # center the label inside the button
+        if not self.enabled:
+            disabled_color = rl.Color(100, 100, 100, 255)
+            rl.draw_rectangle_rec(self.bb, disabled_color)
+            rl.draw_rectangle_lines_ex(self.bb, 1, rl.Color(70, 70, 70, 255))
             text_w = rl.measure_text(self.label, self.font_size)
             tx = int(self.bb.x + (self.bb.width - text_w) / 2)
             ty = int(self.bb.y + (self.bb.height - self.font_size) / 2)
-            rl.draw_text(self.label, tx, ty, self.font_size, self.text_color)
+            rl.draw_text(self.label, tx, ty, self.font_size, rl.Color(160, 160, 160, 255))
+            return
+
+        mouse_pos = get_ui_mouse_position()
+        hover = rl.check_collision_point_rec(mouse_pos, self.bb)
+        clicked = hover and rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
+
+        if clicked and self.on_click:
+            self.on_click()
+
+        rl.draw_rectangle_rec(self.bb, self.hover_color if hover else self.color)
+
+        # center the label inside the button
+        text_w = rl.measure_text(self.label, self.font_size)
+        tx = int(self.bb.x + (self.bb.width - text_w) / 2)
+        ty = int(self.bb.y + (self.bb.height - self.font_size) / 2)
+        rl.draw_text(self.label, tx, ty, self.font_size, self.text_color)
 
 
 class Switch:
@@ -285,7 +300,7 @@ class HUD :
                                     max_len=20)
         self.ga_plcment_mutation_prob_text_entry.enabled = False
 
-        self.run_btn = Button("Run", 60, 560, 180, 45, 17, 
+        self.run_btn = Button("Run", 60, 565, 180, 45, 17, 
                             on_click=lambda : setattr(self, 'command', "RUN"),
                             color=rl.LIGHTGRAY, 
                             hover_color=rl.GRAY, 
@@ -293,11 +308,8 @@ class HUD :
         self.run_btn.enabled = False
 
         self.scroll_y = 0.0
-        self.max_scroll = 160.0
-        self.widgets = [
-            self.input_file_text_entry,
-            self.random_init_btn,
-            self.algorithm_switch,
+        self.max_scroll = 0.0
+        self.scrollable_widgets = [
             self.hc_switch,
             self.max_iter_text_entry,
             self.step_size_text_entry,
@@ -318,7 +330,9 @@ class HUD :
             self.ga_pkg_mutation_prob_text_entry,
             self.ga_plcment_mutation_prob_text_entry,
         ]
-        self.base_positions = [w.bb.y for w in self.widgets]
+        self.scrollable_base_y = [w.bb.y for w in self.scrollable_widgets]
+        self.widgets = self.scrollable_widgets
+        self.base_positions = self.scrollable_base_y
 
     def enable_disabled(self) :
         self.random_init_btn.enabled = True
@@ -370,13 +384,36 @@ class HUD :
             self.ga_plcment_mutation_prob_text_entry.enabled = True
 
     def draw(self) :
-        self.bb.height = float(rl.get_screen_height())
+        screen_h = float(rl.get_screen_height())
+        self.bb.height = screen_h
         self.bb.y = 0.0
-        self.run_btn.bb.y = max(500.0, float(rl.get_screen_height()) - 65.0)
 
-        # Scroll handling for HUD panel
+        header_h = 190.0
+
+        # Determine dynamic base Y for run_btn right below the active parameters
+        algo = self.algorithm_switch.get_current_label()
+        if algo == "Hill Climbing":
+            hc_mode = self.hc_switch.get_current_label()
+            if hc_mode == "Steepest":
+                run_base_y = 370.0
+            else: # Sideways, Random Restart, Stochastic
+                run_base_y = 425.0
+        elif algo == "Simulated Annealing":
+            run_base_y = 520.0
+        else: # Genetic Algorithm
+            run_base_y = 520.0
+
+        # Compute max scroll if content + run_btn exceeds current window height
+        total_content_bottom = run_base_y + 42.0 + 20.0
+        self.max_scroll = max(0.0, total_content_bottom - screen_h)
+        if self.max_scroll <= 0.0:
+            self.scroll_y = 0.0
+        else:
+            self.scroll_y = max(0.0, min(self.max_scroll, self.scroll_y))
+
+        # Scroll handling for HUD panel below header
         mouse_pos = get_ui_mouse_position()
-        if mouse_pos.x <= self.bb.width:
+        if mouse_pos.x <= self.bb.width and mouse_pos.y >= header_h:
             wheel = rl.get_mouse_wheel_move()
             if wheel == 0.0 and hasattr(rl, 'get_mouse_wheel_move_v'):
                 try:
@@ -385,43 +422,72 @@ class HUD :
                         wheel = wheel_v.y
                 except Exception:
                     pass
-            if wheel != 0.0:
+            if wheel != 0.0 and self.max_scroll > 0.0:
                 self.scroll_y = max(0.0, min(self.max_scroll, self.scroll_y - wheel * 24.0))
 
-        for widget, base_y in zip(self.widgets, self.base_positions):
+        # Dynamically position run_btn relative to active parameters and scroll
+        self.run_btn.bb.x = 60.0
+        self.run_btn.bb.width = 180.0
+        self.run_btn.bb.height = 42.0
+        self.run_btn.bb.y = run_base_y - self.scroll_y
+
+        # Update scroll positions of parameter widgets
+        for widget, base_y in zip(self.scrollable_widgets, self.scrollable_base_y):
             widget.bb.y = base_y - self.scroll_y
 
+        # 1. Base HUD background
         rl.draw_rectangle_rec(self.bb, self.color)
 
-        self.random_init_btn.draw()
-        self.input_file_text_entry.draw()
-        self.algorithm_switch.draw()
-        self.run_btn.draw()
-        self.hc_switch.draw()
-        self.max_iter_text_entry.draw()
-        self.step_size_text_entry.draw()
-        self.max_sideways_move_text_entry.draw()
-        self.max_restart_text_entry.draw()
-        self.temperature_text_entry.draw()
-        self.sa_init_temp_text_entry.draw()
-        self.sa_cooling_rate_text_entry.draw()
-        self.sa_min_temp_text_entry.draw()
-        self.sa_max_iter_text_entry.draw()
-        self.sa_step_per_temp_text_entry.draw()
-        self.sa_step_size_text_entry.draw()
-        self.sa_schedule_switch.draw()
-        self.ga_population_size_text_entry.draw()
-        self.ga_generations_text_entry.draw()
-        self.ga_crossover_prob_text_entry.draw()
-        self.ga_tour_size_text_entry.draw()
-        self.ga_pkg_mutation_prob_text_entry.draw()
-        self.ga_plcment_mutation_prob_text_entry.draw()
+        # 2. Draw active parameter widgets (only if inside visible area below header)
+        def draw_param(w):
+            if w.bb.y >= header_h - 25.0 and w.bb.y <= screen_h + 10.0:
+                w.draw()
 
+        if algo == "Hill Climbing":
+            draw_param(self.hc_switch)
+            draw_param(self.max_iter_text_entry)
+            draw_param(self.step_size_text_entry)
+            hc_mode = self.hc_switch.get_current_label()
+            if hc_mode == "Sideways":
+                draw_param(self.max_sideways_move_text_entry)
+            elif hc_mode == "Random Restart":
+                draw_param(self.max_restart_text_entry)
+            elif hc_mode == "Stochastic":
+                draw_param(self.temperature_text_entry)
+        elif algo == "Simulated Annealing":
+            draw_param(self.sa_init_temp_text_entry)
+            draw_param(self.sa_cooling_rate_text_entry)
+            draw_param(self.sa_min_temp_text_entry)
+            draw_param(self.sa_max_iter_text_entry)
+            draw_param(self.sa_step_per_temp_text_entry)
+            draw_param(self.sa_step_size_text_entry)
+            draw_param(self.sa_schedule_switch)
+        elif algo == "Genetic Algorithm":
+            draw_param(self.ga_population_size_text_entry)
+            draw_param(self.ga_generations_text_entry)
+            draw_param(self.ga_crossover_prob_text_entry)
+            draw_param(self.ga_tour_size_text_entry)
+            draw_param(self.ga_pkg_mutation_prob_text_entry)
+            draw_param(self.ga_plcment_mutation_prob_text_entry)
+
+        # 3. Dynamic run button directly below active parameters
+        if self.run_btn.bb.y >= header_h - 20.0 and self.run_btn.bb.y <= screen_h + 10.0:
+            self.run_btn.draw()
+
+        # 4. Middle scrollbar thumb if content exceeds window height
         if self.max_scroll > 0.0:
-            track_h = float(rl.get_screen_height()) - 80.0
-            thumb_h = max(30.0, track_h * (track_h / (track_h + self.max_scroll)))
-            thumb_y = 10.0 + (self.scroll_y / self.max_scroll) * (track_h - thumb_h)
-            rl.draw_rectangle(int(self.bb.width) - 5, int(thumb_y), 3, int(thumb_h), rl.fade(rl.LIGHTGRAY, 0.6))
+            track_y = header_h + 5.0
+            track_h = screen_h - track_y - 10.0
+            thumb_h = max(24.0, track_h * (track_h / (track_h + self.max_scroll)))
+            thumb_y = track_y + (self.scroll_y / self.max_scroll) * (track_h - thumb_h)
+            rl.draw_rectangle(int(self.bb.width) - 6, int(thumb_y), 4, int(thumb_h), rl.fade(rl.LIGHTGRAY, 0.7))
+
+        # 5. Fixed Header: background guard, separator line, and top widgets
+        rl.draw_rectangle(0, 0, int(self.bb.width), int(header_h), self.color)
+        rl.draw_line(15, int(header_h), int(self.bb.width) - 15, int(header_h), rl.fade(rl.GRAY, 0.7))
+        self.input_file_text_entry.draw()
+        self.random_init_btn.draw()
+        self.algorithm_switch.draw()
 
 def plot_history(history):
     launch_plot_subprocess(history)

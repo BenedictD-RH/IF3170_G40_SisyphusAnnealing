@@ -137,6 +137,19 @@ optimization_data = {
 }
 
 
+def _safe_int(val, default):
+    try:
+        return int(str(val).strip())
+    except Exception:
+        return default
+
+def _safe_float(val, default):
+    try:
+        return float(str(val).strip())
+    except Exception:
+        return default
+
+
 def run_optimization_worker(params):
     global optimization_data
     try:
@@ -558,6 +571,7 @@ while not rl.window_should_close():
         initialState = currentState.generate_random_state()
         currentState = initialState
         result_view = ResultView(0, 0, 0, False)
+        hud.enable_disabled()
     elif (hud.command == "RUN") :
         if not is_optimizing and currentState is not None:
             try:
@@ -569,24 +583,24 @@ while not rl.window_should_close():
                     "initial_state": init_clone,
                     "algo_name": hud.algorithm_switch.get_current_label(),
                     "hc_name": hud.hc_switch.get_current_label(),
-                    "max_iter": int(hud.max_iter_text_entry.text),
-                    "step_size": int(hud.step_size_text_entry.text),
-                    "max_sideways": int(hud.max_sideways_move_text_entry.text),
-                    "max_restart": int(hud.max_restart_text_entry.text),
-                    "temperature": float(hud.temperature_text_entry.text),
-                    "sa_init_temp": float(hud.sa_init_temp_text_entry.text),
-                    "sa_cooling_rate": float(hud.sa_cooling_rate_text_entry.text),
-                    "sa_min_temp": float(hud.sa_min_temp_text_entry.text),
-                    "sa_max_iter": int(hud.sa_max_iter_text_entry.text),
-                    "sa_step_per_temp": int(hud.sa_step_per_temp_text_entry.text),
+                    "max_iter": _safe_int(hud.max_iter_text_entry.text, 1000),
+                    "step_size": _safe_int(hud.step_size_text_entry.text, 2),
+                    "max_sideways": _safe_int(hud.max_sideways_move_text_entry.text, 100),
+                    "max_restart": _safe_int(hud.max_restart_text_entry.text, 10),
+                    "temperature": _safe_float(hud.temperature_text_entry.text, 1.0),
+                    "sa_init_temp": _safe_float(hud.sa_init_temp_text_entry.text, 1000.0),
+                    "sa_cooling_rate": _safe_float(hud.sa_cooling_rate_text_entry.text, 0.995),
+                    "sa_min_temp": _safe_float(hud.sa_min_temp_text_entry.text, 0.001),
+                    "sa_max_iter": _safe_int(hud.sa_max_iter_text_entry.text, 1000),
+                    "sa_step_per_temp": _safe_int(hud.sa_step_per_temp_text_entry.text, 1),
                     "sa_schedule": hud.sa_schedule_switch.get_current_label(),
-                    "sa_step_size": int(hud.sa_step_size_text_entry.text),
-                    "ga_pop_size": int(hud.ga_population_size_text_entry.text),
-                    "ga_generations": int(hud.ga_generations_text_entry.text),
-                    "ga_tour_size": int(hud.ga_tour_size_text_entry.text),
-                    "ga_crossover_prob": float(hud.ga_crossover_prob_text_entry.text),
-                    "ga_pkg_mutation": float(hud.ga_pkg_mutation_prob_text_entry.text),
-                    "ga_plcment_mutation": float(hud.ga_plcment_mutation_prob_text_entry.text),
+                    "sa_step_size": _safe_int(hud.sa_step_size_text_entry.text, 2),
+                    "ga_pop_size": _safe_int(hud.ga_population_size_text_entry.text, 100),
+                    "ga_generations": _safe_int(hud.ga_generations_text_entry.text, 200),
+                    "ga_tour_size": _safe_int(hud.ga_tour_size_text_entry.text, 3),
+                    "ga_crossover_prob": _safe_float(hud.ga_crossover_prob_text_entry.text, 0.8),
+                    "ga_pkg_mutation": _safe_float(hud.ga_pkg_mutation_prob_text_entry.text, 0.2),
+                    "ga_plcment_mutation": _safe_float(hud.ga_plcment_mutation_prob_text_entry.text, 0.05),
                 }
                 is_optimizing = True
                 optimization_data["done"] = False
