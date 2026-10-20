@@ -1,5 +1,8 @@
 import pyray as rl
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
 def get_ui_mouse_position() -> rl.Vector2:
     mouse = rl.get_mouse_position()
@@ -369,6 +372,9 @@ class HUD :
         self.ga_plcment_mutation_prob_text_entry.draw()
 
 def plot_history(history) :
+    if plt is None:
+        print("[WARNING] matplotlib is not installed. Please run 'pip install matplotlib' to view plots.")
+        return
     plt.plot(range(len(history)), history, marker='o',markersize=2)
     plt.xlabel("Iteration")
     plt.ylabel("Objective")
