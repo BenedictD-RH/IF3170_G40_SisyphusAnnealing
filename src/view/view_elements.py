@@ -1,7 +1,8 @@
 import pyray as rl
-import sys
-import json
-import subprocess
+try:
+    from .plotter import launch_plot_subprocess, show_plot
+except ImportError:
+    from plotter import launch_plot_subprocess, show_plot
 
 def get_ui_mouse_position() -> rl.Vector2:
     mouse = rl.get_mouse_position()
@@ -370,67 +371,45 @@ class HUD :
         self.ga_pkg_mutation_prob_text_entry.draw()
         self.ga_plcment_mutation_prob_text_entry.draw()
 
-def plot_history(history) :
-    if not history:
-        print("[WARNING] No history data to plot.")
-        return
+def plot_history(history):
+    launch_plot_subprocess(history)
 
-    plot_script = (
-        "import os, sys, json\n"
-        "if 'MPLCONFIGDIR' not in os.environ:\n"
-        "    import tempfile\n"
-        "    os.environ['MPLCONFIGDIR'] = tempfile.gettempdir()\n"
-        "try:\n"
-        "    import matplotlib.pyplot as plt\n"
-        "except ImportError:\n"
-        "    print('[WARNING] matplotlib is not installed. Please run: pip install matplotlib')\n"
-        "    sys.exit(0)\n"
-        "try:\n"
-        "    data = json.loads(sys.stdin.read())\n"
-        "    fig, ax = plt.subplots(figsize=(7, 4.5))\n"
-        "    ax.plot(range(len(data)), data, marker='o', markersize=2, color='tab:blue')\n"
-        "    ax.set_xlabel('Iteration')\n"
-        "    ax.set_ylabel('Objective')\n"
-        "    ax.set_title('Optimization History')\n"
-        "    ax.grid(True, linestyle='--', alpha=0.6)\n"
-        "    plt.tight_layout()\n"
-        "    plt.show()\n"
-        "except Exception as e:\n"
-        "    print(f'[ERROR] Could not display plot: {e}')\n"
-    )
 
-    try:
-        proc = subprocess.Popen([sys.executable, "-c", plot_script], stdin=subprocess.PIPE, text=True)
-        proc.stdin.write(json.dumps(list(history)))
-        proc.stdin.close()
-    except Exception as e:
-        print(f"[ERROR] Failed to launch plot subprocess: {e}")
-class ResultView :
-    def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[]) :
-        self.bb = rl.Rectangle(300, 0, 200, 300)
+class ResultView:
+    def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[], stuck_info=None, loss_details=None):
         self.exec_time = exec_time
         self.final_objective_value = final_objective_value
         self.actual_value = actual_value
         self.is_valid = is_valid
-        self.history=history
-        self.plot_btn = Button("Display Plot", 350, 210, 100, 40, 17, 
-                               on_click=lambda:plot_history(self.history), 
+        self.history = history
+        self.stuck_info = stuck_info
+        self.loss_details = loss_details
+
+        height = 300
+        if stuck_info:
+            height += 36
+        if loss_details:
+            height += 105
+
+        self.bb = rl.Rectangle(300, 0, 220, height)
+        self.plot_btn = Button("Display Plot", 360, int(height) - 48, 100, 36, 16, 
+                               on_click=lambda: plot_history(self.history), 
                                color=rl.GRAY, 
                                hover_color=rl.DARKGRAY, 
                                text_color=rl.WHITE)
 
-    def hasResult(self) :
+    def hasResult(self):
         return not (self.exec_time == 0 and self.final_objective_value == 0 and self.actual_value == 0 and self.is_valid == False)
 
-    def draw(self) :
-        rl.draw_rectangle_pro(self.bb, (0,0), 0, rl.LIGHTGRAY)
+    def draw(self):
+        rl.draw_rectangle_pro(self.bb, (0, 0), 0, rl.LIGHTGRAY)
         rl.draw_rectangle_lines_ex(self.bb, 2, rl.GRAY)
 
         x = int(self.bb.x) + 12
-        y = int(self.bb.y) + 12
+        y = int(self.bb.y) + 10
 
         rl.draw_text("Result", x, y, 20, rl.BLACK)
-        y += 36
+        y += 30
 
         lines = [
             ("Exec time", f"{self.exec_time:.3f} s", rl.BLACK),
@@ -440,8 +419,21 @@ class ResultView :
              rl.DARKGREEN if self.is_valid else rl.MAROON),
         ]
 
-        for label, value, color in lines :
-            rl.draw_text(label, x, y, 14, rl.DARKGRAY)
-            rl.draw_text(value, x, y + 16, 18, color)
-            y += 38
+        if self.loss_details:
+            loaded_c = self.loss_details.get("loaded_count", 0)
+            lost_c = self.loss_details.get("lost_count", 0)
+            lost_v = self.loss_details.get("total_lost_value", 0.0)
+            w_load = self.loss_details.get("total_loaded_weight", 0)
+            max_w = self.loss_details.get("max_capacity", 0)
+            lines.append(("Box Loaded/Lost", f"{loaded_c} in / {lost_c} loss", rl.BLACK if lost_c == 0 else rl.MAROON))
+            lines.append(("Loss Value", f"{lost_v:,.1f}", rl.BLACK if lost_v == 0 else rl.MAROON))
+            lines.append(("Weight", f"{w_load} / {max_w}", rl.BLACK if w_load <= max_w else rl.RED))
+
+        if self.stuck_info:
+            lines.append(("Stuck Freq", str(self.stuck_info), rl.DARKBLUE))
+
+        for label, value, color in lines:
+            rl.draw_text(label, x, y, 13, rl.DARKGRAY)
+            rl.draw_text(value, x, y + 14, 16, color)
+            y += 33
         self.plot_btn.draw()
