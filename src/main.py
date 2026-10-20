@@ -133,8 +133,15 @@ def run_optimization_worker(params):
                 final = hc.optimize()
                 dur = hc.execution_time
             if hc is not None and hasattr(hc, "history"):
-                for entry in hc.history:
-                    hist.append(entry['current_cost'])
+                if hc_name == "Random Restart":
+                    hist = {
+                        "iteration": [entry["iteration"] for entry in hc.history],
+                        "current": [entry["current_cost"] for entry in hc.history],
+                        "run_iterations": hc.run_iterations
+                    }
+                else:
+                    for entry in hc.history:
+                        hist.append(entry['current_cost'])
         elif algo_name == "Simulated Annealing":
             sa = SimulatedAnnealing(
                 init_st,
