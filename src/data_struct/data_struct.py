@@ -348,9 +348,10 @@ def getTotalValue(state : TruckState) :
     return value
 
 def isValid(state : TruckState) :
-    value = 0.0
+    weight = 0
     for p in state.packages :
         if p.isInTruck(state.truck.dimensions) :
+            weight += p.getWeight()
             nearestSupport = p.coordinates['z']
             intersecting = 0
             overflow = p.overflowVolume(state.truck.dimensions)
@@ -370,7 +371,7 @@ def isValid(state : TruckState) :
             if not valid : 
                 return False
 
-    return True
+    return weight < state.truck.maxCapacity
 
 def getTotalWeight(state : TruckState) :
     weight = 0
