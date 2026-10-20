@@ -1,6 +1,21 @@
 import pyray as rl
 import matplotlib.pyplot as plt
 
+def get_ui_mouse_position() -> rl.Vector2:
+    mouse = rl.get_mouse_position()
+    sw = rl.get_screen_width()
+    sh = rl.get_screen_height()
+    rw = rl.get_render_width()
+    rh = rl.get_render_height()
+
+    if sw > 0 and sh > 0 and rw > 0 and rh > 0:
+        scale_x = rw / sw
+        scale_y = rh / sh
+        if (mouse.x > sw or mouse.y > sh) and scale_x > 0 and scale_y > 0:
+            return rl.Vector2(mouse.x / scale_x, mouse.y / scale_y)
+    return mouse
+
+
 class TextEntry:
     def __init__(self, label, x, y, w=180, h=30, text="", numeric=False, max_len=8, on_commit=None):
         self.label = str(label)
@@ -18,8 +33,9 @@ class TextEntry:
 
     def draw(self):
         if self.enabled :
-            mouse_pos = rl.get_mouse_position()
-            hover = rl.check_collision_point_rec(mouse_pos, self.bb)
+            mouse_pos = get_ui_mouse_position()
+            hitbox = rl.Rectangle(self.bb.x, self.bb.y - 20, self.bb.width, self.bb.height + 20)
+            hover = rl.check_collision_point_rec(mouse_pos, hitbox)
 
             # focus handling
             if rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT):
@@ -72,14 +88,14 @@ class Button:
 
     def draw(self):
         if self.enabled :
-            mouse_pos = rl.get_mouse_position()
+            mouse_pos = get_ui_mouse_position()
             hover = rl.check_collision_point_rec(mouse_pos, self.bb)
             clicked = hover and rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
 
             if clicked and self.on_click:
                 self.on_click()
 
-            rl.draw_rectangle_pro(self.bb, (0, 0), 0, self.hover_color if hover else self.color)
+            rl.draw_rectangle_rec(self.bb, self.hover_color if hover else self.color)
 
             # center the label inside the button
             text_w = rl.measure_text(self.label, self.font_size)
@@ -107,7 +123,7 @@ class Switch:
 
     def draw(self):
         if self.enabled :
-            mouse_pos = rl.get_mouse_position()
+            mouse_pos = get_ui_mouse_position()
             hover = rl.check_collision_point_rec(mouse_pos, self.bb)
             clicked = hover and rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
 
@@ -117,7 +133,7 @@ class Switch:
                     self.on_click()
                 
 
-            rl.draw_rectangle_pro(self.bb, (0, 0), 0, self.hover_color if hover else self.color)
+            rl.draw_rectangle_rec(self.bb, self.hover_color if hover else self.color)
 
             # center the label inside the button
             text_w = rl.measure_text(self.label_pool[self.label_idx], self.font_size)
@@ -131,44 +147,45 @@ class HUD :
         self.bb = rl.Rectangle(x, y, w, h)
         self.color = color
         self.command = ""
-        self.input_file_text_entry = TextEntry("Input Initial State File", 60, 100, 180, 30, 
-                                                       on_commit=lambda :setattr(self, 'command', "INPUT_INITIAL_STATE_FILE"),
-                                                        numeric=False, 
-                                                        max_len=20)
-        self.random_init_btn = Button("Random Initial State", 60, 180, 180, 50, 17, 
+        self.input_file_text_entry = TextEntry("Input Initial State File", 60, 45, 180, 30, 
+                                                text="input5.json",
+                                                on_commit=lambda :setattr(self, 'command', "INPUT_INITIAL_STATE_FILE"),
+                                                numeric=False, 
+                                                max_len=20)
+        self.random_init_btn = Button("Random Initial State", 60, 95, 180, 40, 16, 
                                      on_click=lambda : setattr(self, 'command', "RANDOM_INIT_STATE"),
                                      color=rl.LIGHTGRAY, 
                                      hover_color=rl.GRAY, 
                                      text_color=rl.BLACK)
         self.random_init_btn.enabled = False
 
-        self.algorithm_switch = Switch(["Hill Climbing", "Simulated Annealing", "Genetic Algorithm"], 60, 240, 180, 50, 17, 
+        self.algorithm_switch = Switch(["Hill Climbing", "Simulated Annealing", "Genetic Algorithm"], 60, 145, 180, 40, 16, 
                                      on_click=lambda: self.enable_disabled(),
                                      color=rl.LIGHTGRAY, 
                                      hover_color=rl.GRAY, 
                                      text_color=rl.BLACK)
         self.algorithm_switch.enabled = False
 
-        self.hc_switch = Switch(["Steepest", "Sideways", "Random Restart", "Stochastic"], 60, 320, 180, 50, 17, 
+        self.hc_switch = Switch(["Steepest", "Sideways", "Random Restart", "Stochastic"], 60, 195, 180, 40, 16, 
                                 on_click=lambda: self.enable_disabled(),
                                 color=rl.LIGHTGRAY, 
                                 hover_color=rl.GRAY, 
                                 text_color=rl.BLACK)
         self.hc_switch.enabled = False
 
-        self.max_iter_text_entry = TextEntry("Max Iterations", 20, 400, 120, 30,
+        self.max_iter_text_entry = TextEntry("Max Iterations", 20, 265, 120, 28,
                                     text="1000",
                                     numeric=True, 
                                     max_len=20)
         self.max_iter_text_entry.enabled = False
 
-        self.step_size_text_entry = TextEntry("Step Size", 20, 460, 120, 30,
+        self.step_size_text_entry = TextEntry("Step Size", 20, 320, 120, 28,
                                             text="2",
                                             numeric=True, 
                                             max_len=20)
         self.step_size_text_entry.enabled = False
 
-        self.max_sideways_move_text_entry = TextEntry("Max Sideways Move", 20, 520, 120, 30,
+        self.max_sideways_move_text_entry = TextEntry("Max Sideways Move", 20, 375, 120, 28,
                                             text="100",
                                             numeric=True, 
                                             max_len=20)
@@ -180,92 +197,92 @@ class HUD :
                                             max_len=20)
         self.max_restart_text_entry.enabled = False
 
-        self.temperature_text_entry = TextEntry("Temperature", 20, 520, 120, 30,
+        self.temperature_text_entry = TextEntry("Temperature", 20, 375, 120, 28,
                                             text="1.0",
                                             numeric=True, 
                                             max_len=20)
         self.temperature_text_entry.enabled = False
 
-        self.sa_init_temp_text_entry = TextEntry("Initial Temperature", 20, 320, 120, 30,
+        self.sa_init_temp_text_entry = TextEntry("Initial Temperature", 20, 210, 120, 28,
                                     text="1000",
                                     numeric=True, 
                                     max_len=20)
         self.sa_init_temp_text_entry.enabled = False
 
-        self.sa_cooling_rate_text_entry = TextEntry("Cooling Rate", 20, 380, 120, 30,
+        self.sa_cooling_rate_text_entry = TextEntry("Cooling Rate", 20, 262, 120, 28,
                                     text="0.995",
                                     numeric=True, 
                                     max_len=20)
         self.sa_cooling_rate_text_entry.enabled = False
 
-        self.sa_min_temp_text_entry = TextEntry("Min Temperature", 20, 440, 120, 30,
+        self.sa_min_temp_text_entry = TextEntry("Min Temperature", 20, 314, 120, 28,
                                     text="0.001",
                                     numeric=True, 
                                     max_len=20)
         self.sa_min_temp_text_entry.enabled = False
 
-        self.sa_max_iter_text_entry = TextEntry("Max Iterations", 20, 500, 120, 30,
+        self.sa_max_iter_text_entry = TextEntry("Max Iterations", 20, 366, 120, 28,
                                     text="1000",
                                     numeric=True, 
                                     max_len=20)
         self.sa_max_iter_text_entry.enabled = False
 
-        self.sa_step_per_temp_text_entry = TextEntry("Steps per Temperature", 20, 560, 120, 30,
+        self.sa_step_per_temp_text_entry = TextEntry("Steps per Temperature", 20, 418, 120, 28,
                                     text="1",
                                     numeric=True, 
                                     max_len=20)
         self.sa_step_per_temp_text_entry.enabled = False
 
-        self.sa_step_size_text_entry = TextEntry("Steps Size", 20, 620, 120, 30,
+        self.sa_step_size_text_entry = TextEntry("Steps Size", 20, 470, 120, 28,
                                     text="2",
                                     numeric=True, 
                                     max_len=20)
         self.sa_step_size_text_entry.enabled = False
 
-        self.sa_schedule_switch = Switch(["Geometric", "Linear", "Logarithmic", "Cosine"], 180, 400, 100, 50, 17, 
+        self.sa_schedule_switch = Switch(["Geometric", "Linear", "Logarithmic", "Cosine"], 160, 230, 120, 40, 16, 
                                 on_click=lambda: self.enable_disabled(),
                                 color=rl.LIGHTGRAY, 
                                 hover_color=rl.GRAY, 
                                 text_color=rl.BLACK)
         self.sa_schedule_switch.enabled = False
 
-        self.ga_population_size_text_entry = TextEntry("Population Size", 20, 320, 120, 30,
+        self.ga_population_size_text_entry = TextEntry("Population Size", 20, 210, 120, 28,
                                     text="100",
                                     numeric=True, 
                                     max_len=20)
         self.ga_population_size_text_entry.enabled = False
 
-        self.ga_generations_text_entry = TextEntry("Generations", 20, 380, 120, 30,
+        self.ga_generations_text_entry = TextEntry("Generations", 20, 262, 120, 28,
                                     text="200",
                                     numeric=True, 
                                     max_len=20)
         self.ga_generations_text_entry.enabled = False
 
-        self.ga_tour_size_text_entry = TextEntry("Tournament Size", 20, 440, 120, 30,
+        self.ga_tour_size_text_entry = TextEntry("Tournament Size", 20, 314, 120, 28,
                                     text="3",
                                     numeric=True, 
                                     max_len=20)
         self.ga_tour_size_text_entry.enabled = False
 
-        self.ga_crossover_prob_text_entry = TextEntry("Crossover Probability", 20, 500, 120, 30,
+        self.ga_crossover_prob_text_entry = TextEntry("Crossover Probability", 20, 366, 120, 28,
                                     text="0.8",
                                     numeric=True, 
                                     max_len=20)
         self.ga_crossover_prob_text_entry.enabled = False
 
-        self.ga_pkg_mutation_prob_text_entry = TextEntry("Package Mutation Probability", 20, 560, 120, 30,
+        self.ga_pkg_mutation_prob_text_entry = TextEntry("Package Mutation Probability", 20, 418, 120, 28,
                                     text="0.2",
                                     numeric=True, 
                                     max_len=20)
         self.ga_pkg_mutation_prob_text_entry.enabled = False
         
-        self.ga_plcment_mutation_prob_text_entry = TextEntry("Placement Mutation Probability", 20, 620, 120, 30,
+        self.ga_plcment_mutation_prob_text_entry = TextEntry("Placement Mutation Probability", 20, 470, 120, 28,
                                     text="0.05",
                                     numeric=True, 
                                     max_len=20)
         self.ga_plcment_mutation_prob_text_entry.enabled = False
 
-        self.run_btn = Button("Run", 60, 700, 180, 50, 17, 
+        self.run_btn = Button("Run", 60, 560, 180, 45, 17, 
                             on_click=lambda : setattr(self, 'command', "RUN"),
                             color=rl.LIGHTGRAY, 
                             hover_color=rl.GRAY, 
@@ -322,7 +339,10 @@ class HUD :
             self.ga_plcment_mutation_prob_text_entry.enabled = True
 
     def draw(self) :
-        rl.draw_rectangle_pro(self.bb, (0,0), 0, self.color)
+        self.bb.height = float(rl.get_screen_height())
+        self.bb.y = 0.0
+        self.run_btn.bb.y = max(500.0, float(rl.get_screen_height()) - 65.0)
+        rl.draw_rectangle_rec(self.bb, self.color)
 
         self.random_init_btn.draw()
         self.input_file_text_entry.draw()
