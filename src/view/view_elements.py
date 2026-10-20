@@ -1,8 +1,7 @@
 import pyray as rl
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    plt = None
+import sys
+import json
+import subprocess
 
 def get_ui_mouse_position() -> rl.Vector2:
     mouse = rl.get_mouse_position()
@@ -372,14 +371,40 @@ class HUD :
         self.ga_plcment_mutation_prob_text_entry.draw()
 
 def plot_history(history) :
-    if plt is None:
-        print("[WARNING] matplotlib is not installed. Please run 'pip install matplotlib' to view plots.")
+    if not history:
+        print("[WARNING] No history data to plot.")
         return
-    plt.plot(range(len(history)), history, marker='o',markersize=2)
-    plt.xlabel("Iteration")
-    plt.ylabel("Objective")
 
-    plt.show()
+    plot_script = (
+        "import os, sys, json\n"
+        "if 'MPLCONFIGDIR' not in os.environ:\n"
+        "    import tempfile\n"
+        "    os.environ['MPLCONFIGDIR'] = tempfile.gettempdir()\n"
+        "try:\n"
+        "    import matplotlib.pyplot as plt\n"
+        "except ImportError:\n"
+        "    print('[WARNING] matplotlib is not installed. Please run: pip install matplotlib')\n"
+        "    sys.exit(0)\n"
+        "try:\n"
+        "    data = json.loads(sys.stdin.read())\n"
+        "    fig, ax = plt.subplots(figsize=(7, 4.5))\n"
+        "    ax.plot(range(len(data)), data, marker='o', markersize=2, color='tab:blue')\n"
+        "    ax.set_xlabel('Iteration')\n"
+        "    ax.set_ylabel('Objective')\n"
+        "    ax.set_title('Optimization History')\n"
+        "    ax.grid(True, linestyle='--', alpha=0.6)\n"
+        "    plt.tight_layout()\n"
+        "    plt.show()\n"
+        "except Exception as e:\n"
+        "    print(f'[ERROR] Could not display plot: {e}')\n"
+    )
+
+    try:
+        proc = subprocess.Popen([sys.executable, "-c", plot_script], stdin=subprocess.PIPE, text=True)
+        proc.stdin.write(json.dumps(list(history)))
+        proc.stdin.close()
+    except Exception as e:
+        print(f"[ERROR] Failed to launch plot subprocess: {e}")
 class ResultView :
     def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[]) :
         self.bb = rl.Rectangle(300, 0, 200, 300)
