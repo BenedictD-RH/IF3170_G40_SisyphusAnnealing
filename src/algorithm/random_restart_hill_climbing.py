@@ -33,7 +33,7 @@ class RandomRestartHillClimbing(HillClimbing):
         }]
 
         total_steps = 0
-        for restart in range(self.max_restarts):
+        for restart in range(self.max_restarts + 1):
             if restart == 0 and not getattr(self, 'random_init', True):
                 self.current_state = copy.deepcopy(self.initial_state)
             else:
