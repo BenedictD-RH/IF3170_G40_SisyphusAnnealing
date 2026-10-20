@@ -13,7 +13,7 @@ def drawTruckState(state : TruckState, camera) :
     rl.begin_mode_3d(camera)
     rl.draw_cube_wires((state.truck.dimensions['w']/2, state.truck.dimensions['h']/2, state.truck.dimensions['l']/2),
                        state.truck.dimensions['w'], state.truck.dimensions['h'], state.truck.dimensions['l'], rl.BLACK)
-    mouse_pos = get_ui_mouse_position()
+    mouse_pos = rl.get_mouse_position()
     ray = rl.get_screen_to_world_ray(mouse_pos, camera)
     for p in state.packages :
         if p.isInTruck(state.truck.dimensions) :
