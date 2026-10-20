@@ -260,6 +260,13 @@ class TruckState:
         self.truck = Truck(**truck) if isinstance(truck, dict) else truck
         self.packages = [(PackageState(**package) if isinstance(package, dict) else package) for package in packages]
 
+    def clone(self) -> "TruckState":
+        pkgs = [PackageState(p.package, dict(p.coordinates), dict(p.orientation)) for p in self.packages]
+        return TruckState(self.truck, pkgs)
+
+    def __copy__(self):
+        return self.clone()
+
     def to_json(self) :
         return json.dumps(to_dict(self), indent=4)
 

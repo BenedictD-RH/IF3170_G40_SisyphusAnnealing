@@ -45,7 +45,9 @@ class SidewaysHillClimbing(HillClimbing):
             accepted = best_neighbor != -1
 
             if accepted:
-                if best_neighbor_val == current_cost:
+                is_sideways = best_neighbor_val == current_cost
+
+                if is_sideways:
                     sideways_moves += 1
                 else:
                     sideways_moves = 0
@@ -67,9 +69,9 @@ class SidewaysHillClimbing(HillClimbing):
                 "accepted": accepted
             })
 
-            if sideways_moves >= self.max_sideways_moves:
-                break
-            
+            if is_sideways and sideways_moves >= self.max_sideways_moves:
+                break   
+
         self.execution_time = time.time() - start_time
         return self.best_state
     
