@@ -1,8 +1,10 @@
 from data_struct.data_struct import TruckState, objectiveFunction, isValid, getTotalValue
 from algorithm import SteepestHillClimbing, SidewaysHillClimbing, RandomRestartHillClimbing, StochasticHillClimbing, SimulatedAnnealing, genetic_algorithm
-from view.view_elements import TextEntry, Button, HUD
+from view.view_elements import TextEntry, Button, HUD, ResultView
 import pyray as rl
+import matplotlib.pyplot as plt
 import json
+
 
 
 color_dict = {}
@@ -78,7 +80,7 @@ finalState = None
 
 
 hud = HUD()
-
+result_view = ResultView(0, 0, 0, False)
 # with open("output/output7.json", "w", encoding="utf-8") as file:
 #     json.dump(currentState.to_dict(), file, indent=4, ensure_ascii=False)
 
@@ -96,7 +98,7 @@ camera = rl.Camera3D(
 )
 
 camera_mode = rl.CAMERA_PERSPECTIVE
-
+history = []
 
 while not rl.window_should_close():
     rl.update_camera(camera, camera_mode)
@@ -113,6 +115,8 @@ while not rl.window_should_close():
         drawTruckState(currentState, camera)
     
     hud.draw()
+    if result_view.hasResult() :
+        result_view.draw()
 
     resetState = False
     if (hud.command == "INPUT_INITIAL_STATE_FILE") :
@@ -125,6 +129,7 @@ while not rl.window_should_close():
         currentState = initialState
     elif (hud.command == "RUN") :
         hc = None
+        history = []
         if hud.algorithm_switch.get_current_label() == "Hill Climbing" :
             if hud.hc_switch.get_current_label() == "Steepest" :
                 hc = SteepestHillClimbing(initialState, 
@@ -154,6 +159,8 @@ while not rl.window_should_close():
                                         False)
                 finalState = hc.optimize()
             exec_time = hc.execution_time
+            for entry in hc.history :
+                history.append(entry['current_cost'])
         elif hud.algorithm_switch.get_current_label() == "Simulated Annealing" :
             sa = SimulatedAnnealing(initialState,
                                     int(hud.sa_init_temp_text_entry.text),
@@ -166,6 +173,8 @@ while not rl.window_should_close():
                                     False)
             finalState = sa.optimize()
             exec_time = sa.execution_time
+            for entry in sa.history :
+                history.append(entry['current_cost'])
         elif hud.algorithm_switch.get_current_label() == "Genetic Algorithm" :
             result = genetic_algorithm(initialState,
                                        int(hud.ga_population_size_text_entry.text),
@@ -176,10 +185,13 @@ while not rl.window_should_close():
                                        float(hud.ga_plcment_mutation_prob_text_entry.text))
             finalState = result.final_state
             exec_time = result.duration
+            for entry in result.history :
+                history.append(entry.best_feasible_fitness)
         objective_function = objectiveFunction(finalState)
         true_state_value = getTotalValue(finalState)
         is_valid = isValid(finalState) 
         currentState = finalState
+        result_view = ResultView(exec_time, objective_function, true_state_value, is_valid, history)
 
     if resetState :
         truck_w = currentState.truck.dimensions['w'] if currentState != None else 0

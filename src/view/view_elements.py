@@ -1,4 +1,5 @@
 import pyray as rl
+import matplotlib.pyplot as plt
 
 class TextEntry:
     def __init__(self, label, x, y, w=180, h=30, text="", numeric=False, max_len=8, on_commit=None):
@@ -174,7 +175,7 @@ class HUD :
         self.max_sideways_move_text_entry.enabled = False
 
         self.max_restart_text_entry = TextEntry("Max Restart", 20, 520, 120, 30,
-                                            text="100",
+                                            text="10",
                                             numeric=True, 
                                             max_len=20)
         self.max_restart_text_entry.enabled = False
@@ -346,3 +347,50 @@ class HUD :
         self.ga_tour_size_text_entry.draw()
         self.ga_pkg_mutation_prob_text_entry.draw()
         self.ga_plcment_mutation_prob_text_entry.draw()
+
+def plot_history(history) :
+    plt.plot(range(len(history)), history, marker='o',markersize=2)
+    plt.xlabel("Iteration")
+    plt.ylabel("Objective")
+
+    plt.show()
+class ResultView :
+    def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[]) :
+        self.bb = rl.Rectangle(300, 0, 200, 300)
+        self.exec_time = exec_time
+        self.final_objective_value = final_objective_value
+        self.actual_value = actual_value
+        self.is_valid = is_valid
+        self.history=history
+        self.plot_btn = Button("Display Plot", 350, 210, 100, 40, 17, 
+                               on_click=lambda:plot_history(self.history), 
+                               color=rl.GRAY, 
+                               hover_color=rl.DARKGRAY, 
+                               text_color=rl.WHITE)
+
+    def hasResult(self) :
+        return not (self.exec_time == 0 and self.final_objective_value == 0 and self.actual_value == 0 and self.is_valid == False)
+
+    def draw(self) :
+        rl.draw_rectangle_pro(self.bb, (0,0), 0, rl.LIGHTGRAY)
+        rl.draw_rectangle_lines_ex(self.bb, 2, rl.GRAY)
+
+        x = int(self.bb.x) + 12
+        y = int(self.bb.y) + 12
+
+        rl.draw_text("Result", x, y, 20, rl.BLACK)
+        y += 36
+
+        lines = [
+            ("Exec time", f"{self.exec_time:.3f} s", rl.BLACK),
+            ("Objective", f"{self.final_objective_value:,.1f}", rl.BLACK),
+            ("Actual value", f"{self.actual_value:,.1f}", rl.BLACK),
+            ("Valid", "Yes" if self.is_valid else "No",
+             rl.DARKGREEN if self.is_valid else rl.MAROON),
+        ]
+
+        for label, value, color in lines :
+            rl.draw_text(label, x, y, 14, rl.DARKGRAY)
+            rl.draw_text(value, x, y + 16, 18, color)
+            y += 38
+        self.plot_btn.draw()
