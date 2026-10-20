@@ -102,6 +102,7 @@ optimization_data = {
     "true_state_value": 0.0,
     "is_valid": False,
     "history": [],
+    "stuck_info": None,
     "error": None,
 }
 
@@ -114,6 +115,7 @@ def run_optimization_worker(params):
         final = None
         dur = 0.0
         hist = []
+        stuck_info = None
 
         if algo_name == "Hill Climbing":
             if hc_name == "Steepest":
@@ -157,8 +159,16 @@ def run_optimization_worker(params):
             final = sa.optimize()
             dur = sa.execution_time
             if hasattr(sa, "history"):
-                for entry in sa.history:
-                    hist.append(entry['current_cost'])
+                objectives = [entry['current_cost'] for entry in sa.history]
+                probabilities = [entry.get('probability', 1.0) for entry in sa.history]
+                stuck_data = sa.get_stuck_metrics()
+                stuck_info = f"{stuck_data['stuck_episodes']}x ({stuck_data['rejected_moves']} rej)"
+                hist = {
+                    "algo": "Simulated Annealing",
+                    "objectives": objectives,
+                    "probabilities": probabilities,
+                    "stuck_metrics": stuck_data
+                }
         elif algo_name == "Genetic Algorithm":
             res = genetic_algorithm(
                 init_st,
@@ -183,6 +193,7 @@ def run_optimization_worker(params):
             optimization_data["true_state_value"] = getTotalValue(final)
             optimization_data["is_valid"] = isValid(final)
             optimization_data["history"] = hist
+            optimization_data["stuck_info"] = stuck_info
             optimization_data["error"] = None
         optimization_data["done"] = True
     except Exception as e:
@@ -274,8 +285,10 @@ while not rl.window_should_close():
                 true_state_value = optimization_data["true_state_value"]
                 is_valid = optimization_data["is_valid"]
                 history = optimization_data["history"]
-                result_view = ResultView(exec_time, objective_function, true_state_value, is_valid, history)
-                print(f"Optimization finished in {exec_time:.3f}s | Obj: {objective_function:.2f} | Value: {true_state_value:.1f} | Valid: {is_valid}")
+                stuck_info = optimization_data.get("stuck_info")
+                result_view = ResultView(exec_time, objective_function, true_state_value, is_valid, history, stuck_info)
+                stuck_log = f" | SA Stuck: {stuck_info}" if stuck_info else ""
+                print(f"Optimization finished in {exec_time:.3f}s | Obj: {objective_function:.2f} | Value: {true_state_value:.1f} | Valid: {is_valid}{stuck_log}")
 
     resetState = False
     if is_optimizing:

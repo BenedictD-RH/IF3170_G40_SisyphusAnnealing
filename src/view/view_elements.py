@@ -387,33 +387,32 @@ def plot_history(history) :
         "    sys.exit(0)\n"
         "try:\n"
         "    data = json.loads(sys.stdin.read())\n"
-        "    fig, ax = plt.subplots(figsize=(7, 4.5))\n"
-        "    if isinstance(data, dict) and 'run_iterations' in data:\n"
-        "        ax.plot(data['iteration'], data['current'],\n"
-        "                label='Current fitness', marker='.', markersize=3)\n"
-        "        total = 0\n"
-        "        for run, steps in enumerate(data['run_iterations']):\n"
-        "            middle = total + steps / 2\n"
-        "            ax.text(middle, 0.975, f'Run {run}: {steps} iterations',\n"
-        "                    transform=ax.get_xaxis_transform(),\n"
-        "                    ha='center', va='top', fontsize=8)\n"
-        "            total += steps\n"
-        "            if run < len(data['run_iterations']) - 1:\n"
-        "                ax.axvline(total, linestyle=':', color='gray')\n"
-        "        ax.set_xlabel('Total iterations')\n"
-        "        ax.legend()\n"
-        "    elif isinstance(data, dict):\n"
-        "        ax.plot(data['maximum'], label='Maximum population fitness')\n"
-        "        ax.plot(data['mean'], label='Mean population fitness')\n"
-        "        ax.plot(data['best_feasible'], label='Best feasible', linestyle='--')\n"
-        "        ax.set_xlabel('Generation')\n"
-        "        ax.legend()\n"
+        "    if isinstance(data, dict) and 'probabilities' in data:\n"
+        "        # Berlaku khusus Simulated Annealing: Plot Objective dan e^(delta/T) vs Iterasi\n"
+        "        objs = data.get('objectives', [])\n"
+        "        probs = data.get('probabilities', [])\n"
+        "        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 7), sharex=True)\n"
+        "        ax1.plot(range(len(objs)), objs, marker='o', markersize=2, color='tab:blue', label='Objective')\n"
+        "        ax1.set_ylabel('Objective Value')\n"
+        "        ax1.set_title('Simulated Annealing: Objective vs Iteration')\n"
+        "        ax1.grid(True, linestyle='--', alpha=0.6)\n"
+        "        ax1.legend()\n"
+        "        ax2.plot(range(len(probs)), probs, marker='.', markersize=2, color='tab:red', label='e^(delta/T)')\n"
+        "        ax2.set_xlabel('Iteration')\n"
+        "        ax2.set_ylabel('e^(delta / T)')\n"
+        "        ax2.set_ylim(-0.05, 1.05)\n"
+        "        ax2.set_title('Simulated Annealing: Acceptance Probability e^(delta/T) vs Iteration')\n"
+        "        ax2.grid(True, linestyle='--', alpha=0.6)\n"
+        "        ax2.legend()\n"
         "    else:\n"
-        "        ax.plot(range(len(data)), data, marker='o', markersize=2, color='tab:blue')\n"
+        "        # Algoritma Umum (Hill Climbing / Genetic Algorithm): Plot Objective vs Iterasi\n"
+        "        objs = data if isinstance(data, list) else data.get('objectives', [])\n"
+        "        fig, ax = plt.subplots(figsize=(7, 4.5))\n"
+        "        ax.plot(range(len(objs)), objs, marker='o', markersize=2, color='tab:blue')\n"
         "        ax.set_xlabel('Iteration')\n"
-        "    ax.set_ylabel('Objective')\n"
-        "    ax.set_title('Optimization History')\n"
-        "    ax.grid(True, linestyle='--', alpha=0.6)\n"
+        "        ax.set_ylabel('Objective')\n"
+        "        ax.set_title('Optimization History')\n"
+        "        ax.grid(True, linestyle='--', alpha=0.6)\n"
         "    plt.tight_layout()\n"
         "    plt.show()\n"
         "except Exception as e:\n"
@@ -421,20 +420,24 @@ def plot_history(history) :
     )
 
     try:
+        payload = history if isinstance(history, dict) else list(history)
         proc = subprocess.Popen([sys.executable, "-c", plot_script], stdin=subprocess.PIPE, text=True)
-        proc.stdin.write(json.dumps(history))
+        proc.stdin.write(json.dumps(payload))
         proc.stdin.close()
     except Exception as e:
         print(f"[ERROR] Failed to launch plot subprocess: {e}")
 class ResultView :
-    def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[]) :
-        self.bb = rl.Rectangle(300, 0, 200, 300)
+    def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[], stuck_info=None) :
         self.exec_time = exec_time
         self.final_objective_value = final_objective_value
         self.actual_value = actual_value
         self.is_valid = is_valid
-        self.history=history
-        self.plot_btn = Button("Display Plot", 350, 210, 100, 40, 17, 
+        self.history = history
+        self.stuck_info = stuck_info
+
+        height = 340 if stuck_info else 300
+        self.bb = rl.Rectangle(300, 0, 200, height)
+        self.plot_btn = Button("Display Plot", 350, int(height) - 55, 100, 40, 17, 
                                on_click=lambda:plot_history(self.history), 
                                color=rl.GRAY, 
                                hover_color=rl.DARKGRAY, 
@@ -460,6 +463,8 @@ class ResultView :
             ("Valid", "Yes" if self.is_valid else "No",
              rl.DARKGREEN if self.is_valid else rl.MAROON),
         ]
+        if self.stuck_info:
+            lines.append(("Stuck Freq", str(self.stuck_info), rl.DARKBLUE))
 
         for label, value, color in lines :
             rl.draw_text(label, x, y, 14, rl.DARKGRAY)
