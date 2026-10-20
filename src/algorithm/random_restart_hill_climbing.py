@@ -1,5 +1,8 @@
 from .hill_climbing import HillClimbing, TruckState
-from data_struct import objectiveFunction, TruckState
+try:
+    from src.data_struct import objectiveFunction, TruckState
+except ImportError:
+    from data_struct import objectiveFunction, TruckState
 import math
 import time
 import copy
@@ -10,22 +13,34 @@ class RandomRestartHillClimbing(HillClimbing):
         self.max_restarts = max_restarts
     def random_initial_state(self) -> TruckState:
         """Generate a random initial state."""
-        # Implement the logic to generate a random TruckState
-        # For example, you can randomly assign values to the attributes of TruckState
-        # This is a placeholder implementation; replace it with your actual logic
-        random_state = copy.deepcopy(self.current_state)
-        # Randomize the state attributes here
-        return random_state
+        return self.initial_state.generate_random_state()
 
     def optimize(self) -> TruckState:
-        best_state = self.current_state
+        start_time = time.time()
+        best_state = copy.deepcopy(self.current_state)
         best_cost = objectiveFunction(best_state)
+        self.accepted_moves = 0
+        self.history = [{
+            "iteration": 0,
+            "current_cost": best_cost,
+            "best_cost": best_cost,
+            "accepted": True
+        }]
 
+        total_steps = 0
         for restart in range(self.max_restarts):
-            self.current_state = self.random_initial_state()
+            if restart == 0 and not getattr(self, 'random_init', True):
+                self.current_state = copy.deepcopy(self.initial_state)
+            else:
+                self.current_state = self.random_initial_state()
             current_cost = objectiveFunction(self.current_state)
 
-            while True:
+            if current_cost > best_cost:
+                best_state = copy.deepcopy(self.current_state)
+                best_cost = current_cost
+
+            for _ in range(self.max_iterations):
+                total_steps += 1
                 neighbors = self.get_all_neighbors(self.current_state)
                 best_neighbor = -1
                 best_neighbor_val = current_cost
@@ -42,11 +57,21 @@ class RandomRestartHillClimbing(HillClimbing):
 
                 self.current_state = neighbors[best_neighbor]
                 current_cost = objectiveFunction(self.current_state)
+                self.accepted_moves += 1
 
-            if current_cost > best_cost:
-                best_state = copy.deepcopy(self.current_state)
-                best_cost = current_cost
+                if current_cost > best_cost:
+                    best_state = copy.deepcopy(self.current_state)
+                    best_cost = current_cost
 
+                self.history.append({
+                    "iteration": total_steps,
+                    "current_cost": current_cost,
+                    "best_cost": best_cost,
+                    "accepted": True
+                })
+
+        self.execution_time = time.time() - start_time
+        self.best_state = best_state
         return best_state
 
     

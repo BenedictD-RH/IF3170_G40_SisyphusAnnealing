@@ -1,6 +1,22 @@
-from data_struct.data_struct import TruckState, objectiveFunction, isValid, getTotalValue
-from algorithm import SteepestHillClimbing, SidewaysHillClimbing, RandomRestartHillClimbing, StochasticHillClimbing, SimulatedAnnealing, genetic_algorithm
-from view.view_elements import TextEntry, Button, HUD
+import os
+import sys
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+SRC_DIR = os.path.abspath(os.path.dirname(__file__))
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
+
+try:
+    from data_struct.data_struct import TruckState, objectiveFunction, isValid, getTotalValue
+    from algorithm import SteepestHillClimbing, SidewaysHillClimbing, RandomRestartHillClimbing, StochasticHillClimbing, SimulatedAnnealing, genetic_algorithm
+    from view.view_elements import TextEntry, Button, HUD, get_ui_mouse_position
+except ImportError:
+    from src.data_struct.data_struct import TruckState, objectiveFunction, isValid, getTotalValue
+    from src.algorithm import SteepestHillClimbing, SidewaysHillClimbing, RandomRestartHillClimbing, StochasticHillClimbing, SimulatedAnnealing, genetic_algorithm
+    from src.view.view_elements import TextEntry, Button, HUD, get_ui_mouse_position
+
 import pyray as rl
 import json
 
@@ -11,7 +27,8 @@ def drawTruckState(state : TruckState, camera) :
     rl.begin_mode_3d(camera)
     rl.draw_cube_wires((state.truck.dimensions['w']/2, state.truck.dimensions['h']/2, state.truck.dimensions['l']/2),
                        state.truck.dimensions['w'], state.truck.dimensions['h'], state.truck.dimensions['l'], rl.BLACK)
-    ray = rl.get_screen_to_world_ray(rl.get_mouse_position(), camera)
+    mouse_pos = get_ui_mouse_position()
+    ray = rl.get_screen_to_world_ray(mouse_pos, camera)
     for p in state.packages :
         if p.isInTruck(state.truck.dimensions) :
             x1, y1, z1, x2, y2, z2 = p.getAbsoluteBB()
@@ -49,7 +66,7 @@ def drawTruckState(state : TruckState, camera) :
 
             collision = rl.get_ray_collision_box(ray, package_bb)
 
-            if collision.hit :
+            if collision.hit and mouse_pos.x > hud.bb.width:
                 screenPos = rl.get_world_to_screen((x1 + w/2, z1 + h/2, y1 + l/2), camera)
                 rl.draw_rectangle(int(screenPos.x), int(screenPos.y), 310, 165, rl.LIGHTGRAY)
                 rl.draw_text(p.getStateString(), int(screenPos.x) + 5, int(screenPos.y) + 5, 18, rl.BLACK)
@@ -59,9 +76,10 @@ def drawTruckState(state : TruckState, camera) :
 
 
 
-SCREEN_WIDTH = 1200
-SCREEN_HEIGHT = 800
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 640
 rl.set_trace_log_level(rl.LOG_NONE)
+rl.set_config_flags(rl.FLAG_WINDOW_HIGHDPI | rl.FLAG_WINDOW_RESIZABLE)
 rl.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, "Raylib Python - Basic 3D")
 rl.set_target_fps(60)
 
@@ -79,13 +97,24 @@ finalState = None
 
 hud = HUD()
 
-# with open("output/output7.json", "w", encoding="utf-8") as file:
-#     json.dump(currentState.to_dict(), file, indent=4, ensure_ascii=False)
+# Muat file input awal secara otomatis jika tersedia
+default_input_candidates = [
+    os.path.join(BASE_DIR, "input", hud.input_file_text_entry.text),
+    os.path.join("input", hud.input_file_text_entry.text),
+]
+for cand in default_input_candidates:
+    if os.path.exists(cand):
+        try:
+            initialState = TruckState.from_json(cand)
+            currentState = initialState
+            hud.enable_disabled()
+            break
+        except Exception:
+            pass
 
-
-truck_w = currentState.truck.dimensions['w'] if currentState != None else 0
-truck_l = currentState.truck.dimensions['l'] if currentState != None else 0
-truck_h = currentState.truck.dimensions['h'] if currentState != None else 0
+truck_w = currentState.truck.dimensions['w'] if currentState != None else 15
+truck_l = currentState.truck.dimensions['l'] if currentState != None else 25
+truck_h = currentState.truck.dimensions['h'] if currentState != None else 10
 
 camera = rl.Camera3D(
     rl.Vector3(-truck_w*1.25, truck_h*1.75, -truck_l*1.25),
@@ -99,7 +128,9 @@ camera_mode = rl.CAMERA_PERSPECTIVE
 
 
 while not rl.window_should_close():
-    rl.update_camera(camera, camera_mode)
+    mouse_pos = get_ui_mouse_position()
+    if mouse_pos.x > hud.bb.width:
+        rl.update_camera(camera, camera_mode)
     rl.begin_drawing()
     rl.clear_background(rl.RAYWHITE)
 
@@ -116,10 +147,27 @@ while not rl.window_should_close():
 
     resetState = False
     if (hud.command == "INPUT_INITIAL_STATE_FILE") :
-        initialState = TruckState.from_json("input/" + hud.input_file_text_entry.text)
-        currentState = initialState
-        resetState = True
-        hud.enable_disabled()
+        fname = hud.input_file_text_entry.text.strip()
+        candidates = [
+            os.path.join(BASE_DIR, "input", fname),
+            os.path.join("input", fname),
+            fname
+        ]
+        target_path = None
+        for cand in candidates:
+            if os.path.exists(cand):
+                target_path = cand
+                break
+        if target_path:
+            try:
+                initialState = TruckState.from_json(target_path)
+                currentState = initialState
+                resetState = True
+                hud.enable_disabled()
+            except Exception as e:
+                print(f"Error loading state from {target_path}: {e}")
+        else:
+            print(f"File not found: {fname}")
     elif (hud.command == "RANDOM_INIT_STATE") :
         initialState = currentState.generate_random_state()
         currentState = initialState
@@ -182,9 +230,9 @@ while not rl.window_should_close():
         currentState = finalState
 
     if resetState :
-        truck_w = currentState.truck.dimensions['w'] if currentState != None else 0
-        truck_l = currentState.truck.dimensions['l'] if currentState != None else 0
-        truck_h = currentState.truck.dimensions['h'] if currentState != None else 0
+        truck_w = currentState.truck.dimensions['w'] if currentState != None else 15
+        truck_l = currentState.truck.dimensions['l'] if currentState != None else 25
+        truck_h = currentState.truck.dimensions['h'] if currentState != None else 10
 
         camera = rl.Camera3D(
             rl.Vector3(-truck_w*1.25, truck_h*1.75, -truck_l*1.25),
