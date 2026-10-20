@@ -223,8 +223,7 @@ def placement_algorithm(placement_order : AxisPermutation, extreme_points : set[
             cur_package_bounding_box = AABB(cur_extreme_point, cur_package_data.dimensions, cur_orientation)
 
             # reject packages extending beyond the truck.
-            if (
-                cur_package_bounding_box.x_max > truck.dimensions["w"]
+            if (cur_package_bounding_box.x_max > truck.dimensions["w"]
                 or cur_package_bounding_box.y_max > truck.dimensions["l"]
                 or cur_package_bounding_box.z_max > truck.dimensions["h"]):
                 continue

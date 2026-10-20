@@ -37,6 +37,10 @@ class SidewaysHillClimbing(HillClimbing):
                 if neighbor_cost > best_neighbor_val:
                     best_neighbor = j
                     best_neighbor_val = neighbor_cost
+                elif (neighbor_cost == current_cost 
+                      and best_neighbor == -1
+                      and sideways_moves < self.max_sideways_moves):
+                    best_neighbor = j
 
             accepted = best_neighbor != -1
 
