@@ -19,6 +19,8 @@ except ImportError:
 
 import pyray as rl
 import json
+import threading
+import copy
 
 color_dict = {}
 
@@ -65,7 +67,7 @@ def drawTruckState(state : TruckState, camera) :
 
             collision = rl.get_ray_collision_box(ray, package_bb)
 
-            if collision.hit and mouse_pos.x > hud.bb.width:
+            if collision.hit and mouse_pos.x > hud.bb.width and not (result_view.hasResult() and rl.check_collision_point_rec(get_ui_mouse_position(), result_view.bb)):
                 screenPos = rl.get_world_to_screen((x1 + w/2, z1 + h/2, y1 + l/2), camera)
                 rl.draw_rectangle(int(screenPos.x), int(screenPos.y), 310, 165, rl.LIGHTGRAY)
                 rl.draw_text(p.getStateString(), int(screenPos.x) + 5, int(screenPos.y) + 5, 18, rl.BLACK)
@@ -86,12 +88,98 @@ rl.set_target_fps(60)
 currentState = None
 initialState = None
 finalState = None
-# hc = SteepestHillClimbing(initialState, max_iterations=1000, random_init=False, step_size=20)
-# currentState = hc.optimize()
-# print(objectiveFunction(currentState))
-# print(getTotalValue(currentState))
-# print(getTotalWeight(currentState))
-# print("Execution time: ", hc.execution_time, "s")
+exec_time = 0.0
+objective_function = 0.0
+true_state_value = 0.0
+is_valid = False
+
+is_optimizing = False
+optimization_data = {
+    "done": False,
+    "finalState": None,
+    "exec_time": 0.0,
+    "objective_function": 0.0,
+    "true_state_value": 0.0,
+    "is_valid": False,
+    "history": [],
+    "error": None,
+}
+
+def run_optimization_worker(params):
+    global optimization_data
+    try:
+        init_st = params["initial_state"]
+        algo_name = params["algo_name"]
+        hc_name = params["hc_name"]
+        final = None
+        dur = 0.0
+        hist = []
+
+        if algo_name == "Hill Climbing":
+            if hc_name == "Steepest":
+                hc = SteepestHillClimbing(init_st, params["max_iter"], params["step_size"], False)
+                final = hc.optimize()
+                dur = hc.execution_time
+            elif hc_name == "Sideways":
+                hc = SidewaysHillClimbing(init_st, params["max_iter"], params["step_size"], False, params["max_sideways"])
+                final = hc.optimize()
+                dur = hc.execution_time
+            elif hc_name == "Random Restart":
+                hc = RandomRestartHillClimbing(init_st, params["max_iter"], params["step_size"], False, params["max_restart"])
+                final = hc.optimize()
+                dur = hc.execution_time
+            elif hc_name == "Stochastic":
+                hc = StochasticHillClimbing(init_st, params["max_iter"], params["step_size"], params["temperature"], False)
+                final = hc.optimize()
+                dur = hc.execution_time
+            if hc is not None and hasattr(hc, "history"):
+                for entry in hc.history:
+                    hist.append(entry['current_cost'])
+        elif algo_name == "Simulated Annealing":
+            sa = SimulatedAnnealing(
+                init_st,
+                params["sa_init_temp"],
+                params["sa_cooling_rate"],
+                params["sa_min_temp"],
+                params["sa_max_iter"],
+                params["sa_step_per_temp"],
+                params["sa_schedule"],
+                params["sa_step_size"],
+                False
+            )
+            final = sa.optimize()
+            dur = sa.execution_time
+            if hasattr(sa, "history"):
+                for entry in sa.history:
+                    hist.append(entry['current_cost'])
+        elif algo_name == "Genetic Algorithm":
+            res = genetic_algorithm(
+                init_st,
+                params["ga_pop_size"],
+                params["ga_generations"],
+                params["ga_tour_size"],
+                params["ga_crossover_prob"],
+                params["ga_pkg_mutation"],
+                params["ga_plcment_mutation"]
+            )
+            final = res.final_state
+            dur = res.duration
+            if hasattr(res, "history"):
+                for entry in res.history:
+                    hist.append(entry.best_feasible_fitness)
+
+        if final is not None:
+            optimization_data["finalState"] = final
+            optimization_data["exec_time"] = dur
+            optimization_data["objective_function"] = objectiveFunction(final)
+            optimization_data["true_state_value"] = getTotalValue(final)
+            optimization_data["is_valid"] = isValid(final)
+            optimization_data["history"] = hist
+            optimization_data["error"] = None
+        optimization_data["done"] = True
+    except Exception as e:
+        optimization_data["error"] = str(e)
+        optimization_data["done"] = True
 
 
 hud = HUD()
@@ -131,7 +219,7 @@ history = []
 
 while not rl.window_should_close():
     mouse_pos = get_ui_mouse_position()
-    if mouse_pos.x > hud.bb.width:
+    if mouse_pos.x > hud.bb.width and not (result_view.hasResult() and rl.check_collision_point_rec(mouse_pos, result_view.bb)):
         rl.update_camera(camera, camera_mode)
     rl.begin_drawing()
     rl.clear_background(rl.RAYWHITE)
@@ -149,8 +237,42 @@ while not rl.window_should_close():
     if result_view.hasResult() :
         result_view.draw()
 
+    # Worker status update and UI banners
+    if is_optimizing:
+        hud.run_btn.label = "Running..."
+        hud.run_btn.color = rl.ORANGE
+        hud.run_btn.hover_color = rl.ORANGE
+
+        banner_w = 340
+        banner_h = 36
+        banner_x = int(hud.bb.width) + 15
+        banner_y = 15
+        rl.draw_rectangle(banner_x, banner_y, banner_w, banner_h, rl.fade(rl.BLACK, 0.75))
+        dots = "." * ((int(rl.get_time() * 3) % 4) + 1)
+        rl.draw_text(f"Optimizing in background{dots}", banner_x + 12, banner_y + 10, 16, rl.WHITE)
+
+        if optimization_data["done"]:
+            is_optimizing = False
+            hud.run_btn.label = "Run"
+            hud.run_btn.color = rl.LIGHTGRAY
+            hud.run_btn.hover_color = rl.GRAY
+            if optimization_data["error"]:
+                print(f"Error during optimization: {optimization_data['error']}")
+            elif optimization_data["finalState"] is not None:
+                finalState = optimization_data["finalState"]
+                currentState = finalState
+                exec_time = optimization_data["exec_time"]
+                objective_function = optimization_data["objective_function"]
+                true_state_value = optimization_data["true_state_value"]
+                is_valid = optimization_data["is_valid"]
+                history = optimization_data["history"]
+                result_view = ResultView(exec_time, objective_function, true_state_value, is_valid, history)
+                print(f"Optimization finished in {exec_time:.3f}s | Obj: {objective_function:.2f} | Value: {true_state_value:.1f} | Valid: {is_valid}")
+
     resetState = False
-    if (hud.command == "INPUT_INITIAL_STATE_FILE") :
+    if is_optimizing:
+        hud.command = ""
+    elif (hud.command == "INPUT_INITIAL_STATE_FILE") :
         fname = hud.input_file_text_entry.text.strip()
         candidates = [
             os.path.join(BASE_DIR, "input", fname),
@@ -167,6 +289,7 @@ while not rl.window_should_close():
                 initialState = TruckState.from_json(target_path)
                 currentState = initialState
                 resetState = True
+                result_view = ResultView(0, 0, 0, False)
                 hud.enable_disabled()
             except Exception as e:
                 print(f"Error loading state from {target_path}: {e}")
@@ -175,71 +298,43 @@ while not rl.window_should_close():
     elif (hud.command == "RANDOM_INIT_STATE") :
         initialState = currentState.generate_random_state()
         currentState = initialState
+        result_view = ResultView(0, 0, 0, False)
     elif (hud.command == "RUN") :
-        hc = None
-        history = []
-        if hud.algorithm_switch.get_current_label() == "Hill Climbing" :
-            if hud.hc_switch.get_current_label() == "Steepest" :
-                hc = SteepestHillClimbing(initialState, 
-                                          int(hud.max_iter_text_entry.text), 
-                                          int(hud.step_size_text_entry.text),
-                                          False)
-                finalState = hc.optimize()
-            elif hud.hc_switch.get_current_label() == "Sideways" :
-                hc = SidewaysHillClimbing(initialState, 
-                                        int(hud.max_iter_text_entry.text), 
-                                        int(hud.step_size_text_entry.text),
-                                        False,
-                                        int(hud.max_sideways_move_text_entry.text))
-                finalState = hc.optimize()
-            elif hud.hc_switch.get_current_label() == "Random Restart" :
-                hc = RandomRestartHillClimbing(initialState, 
-                                        int(hud.max_iter_text_entry.text), 
-                                        int(hud.step_size_text_entry.text),
-                                        False,
-                                        int(hud.max_restart_text_entry.text))
-                finalState = hc.optimize()
-            elif hud.hc_switch.get_current_label() == "Stochastic" :
-                hc = StochasticHillClimbing(initialState, 
-                                        int(hud.max_iter_text_entry.text), 
-                                        int(hud.step_size_text_entry.text),
-                                        float(hud.temperature_text_entry.text),
-                                        False)
-                finalState = hc.optimize()
-            exec_time = hc.execution_time
-            for entry in hc.history :
-                history.append(entry['current_cost'])
-        elif hud.algorithm_switch.get_current_label() == "Simulated Annealing" :
-            sa = SimulatedAnnealing(initialState,
-                                    int(hud.sa_init_temp_text_entry.text),
-                                    float(hud.sa_cooling_rate_text_entry.text),
-                                    float(hud.sa_min_temp_text_entry.text),
-                                    int(hud.sa_max_iter_text_entry.text),
-                                    int(hud.sa_step_per_temp_text_entry.text),
-                                    hud.sa_schedule_switch.get_current_label(),
-                                    int(hud.sa_step_size_text_entry.text), 
-                                    False)
-            finalState = sa.optimize()
-            exec_time = sa.execution_time
-            for entry in sa.history :
-                history.append(entry['current_cost'])
-        elif hud.algorithm_switch.get_current_label() == "Genetic Algorithm" :
-            result = genetic_algorithm(initialState,
-                                       int(hud.ga_population_size_text_entry.text),
-                                       int(hud.ga_generations_text_entry.text),
-                                       int(hud.ga_tour_size_text_entry.text),
-                                       float(hud.ga_crossover_prob_text_entry.text),
-                                       float(hud.ga_pkg_mutation_prob_text_entry.text),
-                                       float(hud.ga_plcment_mutation_prob_text_entry.text))
-            finalState = result.final_state
-            exec_time = result.duration
-            for entry in result.history :
-                history.append(entry.best_feasible_fitness)
-        objective_function = objectiveFunction(finalState)
-        true_state_value = getTotalValue(finalState)
-        is_valid = isValid(finalState) 
-        currentState = finalState
-        result_view = ResultView(exec_time, objective_function, true_state_value, is_valid, history)
+        if not is_optimizing and currentState is not None:
+            try:
+                result_view = ResultView(0, 0, 0, False)
+                base_st = initialState if initialState is not None else currentState
+                init_clone = base_st.clone() if hasattr(base_st, 'clone') else copy.deepcopy(base_st)
+                params = {
+                    "initial_state": init_clone,
+                    "algo_name": hud.algorithm_switch.get_current_label(),
+                    "hc_name": hud.hc_switch.get_current_label(),
+                    "max_iter": int(hud.max_iter_text_entry.text),
+                    "step_size": int(hud.step_size_text_entry.text),
+                    "max_sideways": int(hud.max_sideways_move_text_entry.text),
+                    "max_restart": int(hud.max_restart_text_entry.text),
+                    "temperature": float(hud.temperature_text_entry.text),
+                    "sa_init_temp": float(hud.sa_init_temp_text_entry.text),
+                    "sa_cooling_rate": float(hud.sa_cooling_rate_text_entry.text),
+                    "sa_min_temp": float(hud.sa_min_temp_text_entry.text),
+                    "sa_max_iter": int(hud.sa_max_iter_text_entry.text),
+                    "sa_step_per_temp": int(hud.sa_step_per_temp_text_entry.text),
+                    "sa_schedule": hud.sa_schedule_switch.get_current_label(),
+                    "sa_step_size": int(hud.sa_step_size_text_entry.text),
+                    "ga_pop_size": int(hud.ga_population_size_text_entry.text),
+                    "ga_generations": int(hud.ga_generations_text_entry.text),
+                    "ga_tour_size": int(hud.ga_tour_size_text_entry.text),
+                    "ga_crossover_prob": float(hud.ga_crossover_prob_text_entry.text),
+                    "ga_pkg_mutation": float(hud.ga_pkg_mutation_prob_text_entry.text),
+                    "ga_plcment_mutation": float(hud.ga_plcment_mutation_prob_text_entry.text),
+                }
+                is_optimizing = True
+                optimization_data["done"] = False
+                optimization_data["error"] = None
+                opt_thread = threading.Thread(target=run_optimization_worker, args=(params,), daemon=True)
+                opt_thread.start()
+            except Exception as e:
+                print(f"Error starting optimization thread: {e}")
 
     if resetState :
         truck_w = currentState.truck.dimensions['w'] if currentState != None else 15

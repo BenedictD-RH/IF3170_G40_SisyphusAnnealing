@@ -191,7 +191,7 @@ class HUD :
                                             max_len=20)
         self.max_sideways_move_text_entry.enabled = False
 
-        self.max_restart_text_entry = TextEntry("Max Restart", 20, 520, 120, 30,
+        self.max_restart_text_entry = TextEntry("Max Restart", 20, 375, 120, 28,
                                             text="10",
                                             numeric=True, 
                                             max_len=20)

@@ -28,12 +28,10 @@ class SteepestHillClimbing(HillClimbing):
                 neighbors = self.get_all_neighbors(self.current_state)
                 best_neighbor = -1
                 best_neighbor_val = current_cost
-                for i in range(len(neighbors)) :
-                        
-                    neighbor_cost = objectiveFunction(neighbors[i])
-                    
-                    if  neighbor_cost > best_neighbor_val :
-                        best_neighbor = i
+                for k in range(len(neighbors)) :
+                    neighbor_cost = objectiveFunction(neighbors[k])
+                    if neighbor_cost > best_neighbor_val :
+                        best_neighbor = k
                         best_neighbor_val = neighbor_cost
     
                 accepted = best_neighbor != -1
