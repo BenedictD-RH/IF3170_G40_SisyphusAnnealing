@@ -348,6 +348,13 @@ while not rl.window_should_close():
 
     mouse_delta = rl.get_mouse_delta()
     wheel = rl.get_mouse_wheel_move()
+    if wheel == 0.0 and hasattr(rl, 'get_mouse_wheel_move_v'):
+        try:
+            wheel_v = rl.get_mouse_wheel_move_v()
+            if hasattr(wheel_v, 'y') and wheel_v.y != 0.0:
+                wheel = wheel_v.y
+        except Exception:
+            pass
 
     is_rotating = in_viewport and (
         rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_RIGHT) or
@@ -375,9 +382,25 @@ while not rl.window_should_close():
         max_phi = math.pi / 2.0 - 0.02
         phi = max(-max_phi, min(max_phi, phi))
 
-    if in_viewport and wheel != 0:
-        zoom_speed = max(1.0, radius * 0.1)
+    # Scroll up & down: Zoom in / Zoom out via wheel
+    shift_pressed = rl.is_key_down(rl.KeyboardKey.KEY_LEFT_SHIFT) or rl.is_key_down(rl.KeyboardKey.KEY_RIGHT_SHIFT)
+    if in_viewport and wheel != 0 and not shift_pressed:
+        zoom_speed = max(1.2, radius * 0.12)
         radius = max(3.0, radius - wheel * zoom_speed)
+
+    # Scroll up & down: Vertically scroll camera height via Shift+wheel or UP/DOWN / PageUp/PageDown
+    vert_scroll = 0.0
+    if in_viewport and wheel != 0 and shift_pressed:
+        vert_scroll += wheel * 1.5
+
+    if rl.is_key_down(rl.KeyboardKey.KEY_UP) or rl.is_key_down(rl.KeyboardKey.KEY_PAGE_UP):
+        vert_scroll += 0.5
+    if rl.is_key_down(rl.KeyboardKey.KEY_DOWN) or rl.is_key_down(rl.KeyboardKey.KEY_PAGE_DOWN):
+        vert_scroll -= 0.5
+
+    if vert_scroll != 0.0:
+        camera.target.y += vert_scroll
+        camera.position.y += vert_scroll
 
     cos_phi = math.cos(phi)
     new_pos_x = camera.target.x + radius * cos_phi * math.cos(theta)

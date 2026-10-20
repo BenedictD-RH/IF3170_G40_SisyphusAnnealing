@@ -292,6 +292,34 @@ class HUD :
                             text_color=rl.BLACK)
         self.run_btn.enabled = False
 
+        self.scroll_y = 0.0
+        self.max_scroll = 160.0
+        self.widgets = [
+            self.input_file_text_entry,
+            self.random_init_btn,
+            self.algorithm_switch,
+            self.hc_switch,
+            self.max_iter_text_entry,
+            self.step_size_text_entry,
+            self.max_sideways_move_text_entry,
+            self.max_restart_text_entry,
+            self.temperature_text_entry,
+            self.sa_init_temp_text_entry,
+            self.sa_cooling_rate_text_entry,
+            self.sa_min_temp_text_entry,
+            self.sa_max_iter_text_entry,
+            self.sa_step_per_temp_text_entry,
+            self.sa_step_size_text_entry,
+            self.sa_schedule_switch,
+            self.ga_population_size_text_entry,
+            self.ga_generations_text_entry,
+            self.ga_tour_size_text_entry,
+            self.ga_crossover_prob_text_entry,
+            self.ga_pkg_mutation_prob_text_entry,
+            self.ga_plcment_mutation_prob_text_entry,
+        ]
+        self.base_positions = [w.bb.y for w in self.widgets]
+
     def enable_disabled(self) :
         self.random_init_btn.enabled = True
         self.algorithm_switch.enabled = True
@@ -345,6 +373,24 @@ class HUD :
         self.bb.height = float(rl.get_screen_height())
         self.bb.y = 0.0
         self.run_btn.bb.y = max(500.0, float(rl.get_screen_height()) - 65.0)
+
+        # Scroll handling for HUD panel
+        mouse_pos = get_ui_mouse_position()
+        if mouse_pos.x <= self.bb.width:
+            wheel = rl.get_mouse_wheel_move()
+            if wheel == 0.0 and hasattr(rl, 'get_mouse_wheel_move_v'):
+                try:
+                    wheel_v = rl.get_mouse_wheel_move_v()
+                    if hasattr(wheel_v, 'y') and wheel_v.y != 0.0:
+                        wheel = wheel_v.y
+                except Exception:
+                    pass
+            if wheel != 0.0:
+                self.scroll_y = max(0.0, min(self.max_scroll, self.scroll_y - wheel * 24.0))
+
+        for widget, base_y in zip(self.widgets, self.base_positions):
+            widget.bb.y = base_y - self.scroll_y
+
         rl.draw_rectangle_rec(self.bb, self.color)
 
         self.random_init_btn.draw()
@@ -370,6 +416,12 @@ class HUD :
         self.ga_tour_size_text_entry.draw()
         self.ga_pkg_mutation_prob_text_entry.draw()
         self.ga_plcment_mutation_prob_text_entry.draw()
+
+        if self.max_scroll > 0.0:
+            track_h = float(rl.get_screen_height()) - 80.0
+            thumb_h = max(30.0, track_h * (track_h / (track_h + self.max_scroll)))
+            thumb_y = 10.0 + (self.scroll_y / self.max_scroll) * (track_h - thumb_h)
+            rl.draw_rectangle(int(self.bb.width) - 5, int(thumb_y), 3, int(thumb_h), rl.fade(rl.LIGHTGRAY, 0.6))
 
 def plot_history(history):
     launch_plot_subprocess(history)
