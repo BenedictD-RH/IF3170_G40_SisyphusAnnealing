@@ -300,12 +300,123 @@ class SimulatedAnnealingPlotTemplate(BasePlotTemplate):
         ax2.legend(fontsize=self.theme.legend_font_size, loc="lower right", facecolor=self.theme.bg_color, edgecolor=self.theme.grid_color)
 
 
+class RandomRestartPlotTemplate(BasePlotTemplate):
+
+    def create_figure(self, plt) -> Any:
+        fig, ax = plt.subplots(figsize=(8.0, 5.0), dpi=self.theme.figure_dpi)
+        self.axes = [ax]
+        self.apply_theme_to_axis(ax)
+        return fig
+
+    def draw_content(self, plt, data: Any) -> None:
+        ax = self.axes[0]
+        objs = data.get("current", data.get("objectives", [])) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+        iters = data.get("iteration", list(range(len(objs)))) if isinstance(data, dict) else list(range(len(objs)))
+        run_iterations = data.get("run_iterations", []) if isinstance(data, dict) else []
+        n_points = len(objs)
+        if n_points == 0:
+            ax.text(0.5, 0.5, "No data available", ha="center", va="center", color=self.theme.text_color)
+            return
+
+        marker, m_size = _get_marker_config(n_points)
+        ax.plot(
+            iters,
+            objs,
+            color=self.theme.primary_line_color,
+            linewidth=self.theme.line_width,
+            marker=marker,
+            markersize=m_size,
+            label="Current Fitness"
+        )
+
+        ax.scatter([iters[0]], [objs[0]], color=self.theme.start_marker_color, s=35, zorder=4, label=f"Initial: {objs[0]:,.1f}")
+
+        best_idx, best_val = max(enumerate(objs), key=lambda x: x[1])
+        best_iter = iters[best_idx]
+        ax.scatter(
+            [best_iter],
+            [best_val],
+            color=self.theme.best_marker_color,
+            s=55,
+            zorder=5,
+            label=f"Best: {best_val:,.1f} (iter {best_iter})"
+        )
+
+        total = 0
+        for run, steps in enumerate(run_iterations):
+            middle = total + steps / 2
+            ax.text(
+                middle, 0.975, f"Run {run}: {steps} iterations",
+                transform=ax.get_xaxis_transform(),
+                ha="center", va="top",
+                fontsize=max(7, self.theme.legend_font_size - 1),
+                color=self.theme.text_color
+            )
+            total += steps
+            if run < len(run_iterations) - 1:
+                ax.axvline(total, linestyle=":", color=self.theme.text_color, alpha=0.5)
+
+        imprv = best_val - objs[0]
+        restarts_count = max(0, len(run_iterations) - 1)
+        summary_txt = f"Total Iter: {iters[-1] if iters else 0}\nRestarts: {restarts_count}\nInitial: {objs[0]:,.1f}\nBest: {best_val:,.1f}\nImprovement: {imprv:+,.1f}"
+        ax.text(
+            0.02, 0.96, summary_txt,
+            transform=ax.transAxes,
+            fontsize=self.theme.legend_font_size,
+            verticalalignment="top",
+            bbox=dict(boxstyle="round,pad=0.4", facecolor=self.theme.bg_color, edgecolor=self.theme.grid_color, alpha=0.9),
+            color=self.theme.text_color
+        )
+
+        ax.set_title("Random Restart Hill Climbing: Objective vs Iteration", fontsize=self.theme.title_font_size, color=self.theme.text_color, pad=10)
+        ax.set_xlabel("Total Iterations", fontsize=self.theme.label_font_size, color=self.theme.text_color)
+        ax.set_ylabel("Objective Function", fontsize=self.theme.label_font_size, color=self.theme.text_color)
+        ax.legend(fontsize=self.theme.legend_font_size, loc="lower right", facecolor=self.theme.bg_color, edgecolor=self.theme.grid_color)
+
+
+class GeneticAlgorithmPlotTemplate(BasePlotTemplate):
+
+    def create_figure(self, plt) -> Any:
+        fig, ax = plt.subplots(figsize=(7.5, 4.8), dpi=self.theme.figure_dpi)
+        self.axes = [ax]
+        self.apply_theme_to_axis(ax)
+        return fig
+
+    def draw_content(self, plt, data: Any) -> None:
+        ax = self.axes[0]
+        max_vals = data.get("maximum", [])
+        mean_vals = data.get("mean", [])
+        best_feas = data.get("best_feasible", [])
+        n_points = max(len(max_vals), len(mean_vals), len(best_feas))
+        if n_points == 0:
+            ax.text(0.5, 0.5, "No data available", ha="center", va="center", color=self.theme.text_color)
+            return
+
+        marker, m_size = _get_marker_config(n_points)
+        if max_vals:
+            ax.plot(range(len(max_vals)), max_vals, color=self.theme.primary_line_color, linewidth=self.theme.line_width, marker=marker, markersize=m_size, label="Maximum Fitness")
+        if mean_vals:
+            ax.plot(range(len(mean_vals)), mean_vals, color=self.theme.secondary_line_color, linewidth=self.theme.line_width, marker=marker, markersize=m_size, label="Mean Fitness")
+        if best_feas:
+            ax.plot(range(len(best_feas)), best_feas, color=self.theme.best_marker_color, linewidth=self.theme.line_width, linestyle="--", label="Best Feasible")
+
+        ax.set_title("Genetic Algorithm: Fitness vs Generation", fontsize=self.theme.title_font_size, color=self.theme.text_color, pad=10)
+        ax.set_xlabel("Generation", fontsize=self.theme.label_font_size, color=self.theme.text_color)
+        ax.set_ylabel("Fitness", fontsize=self.theme.label_font_size, color=self.theme.text_color)
+        ax.legend(fontsize=self.theme.legend_font_size, loc="lower right", facecolor=self.theme.bg_color, edgecolor=self.theme.grid_color)
+
+
 class PlotTemplateFactory:
 
     @staticmethod
     def get_template(data: Any, theme: Optional[str] = None, export_path: Optional[str] = None) -> BasePlotTemplate:
-        if isinstance(data, dict) and "probabilities" in data:
-            return SimulatedAnnealingPlotTemplate(theme=theme, export_path=export_path)
+        if isinstance(data, dict):
+            if "run_iterations" in data:
+                return RandomRestartPlotTemplate(theme=theme, export_path=export_path)
+            if "probabilities" in data:
+                return SimulatedAnnealingPlotTemplate(theme=theme, export_path=export_path)
+            if "maximum" in data:
+                return GeneticAlgorithmPlotTemplate(theme=theme, export_path=export_path)
         return SingleMetricPlotTemplate(theme=theme, export_path=export_path)
 
 

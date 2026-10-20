@@ -19,7 +19,7 @@ class SidewaysHillClimbing(HillClimbing):
         self.history = [{
             "iteration": 0,
             "current_cost": current_cost,
-            "best_cost": best_cost,
+            "best_cost": best_cost, 
             "accepted": True
         }]
         self.accepted_moves = 0

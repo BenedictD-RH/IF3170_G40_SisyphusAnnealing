@@ -6,7 +6,9 @@ from .plotter import (
     THEMES,
     BasePlotTemplate,
     SingleMetricPlotTemplate,
+    RandomRestartPlotTemplate,
     SimulatedAnnealingPlotTemplate,
+    GeneticAlgorithmPlotTemplate,
     PlotTemplateFactory
 )
 
@@ -23,7 +25,9 @@ __all__ = [
     "THEMES",
     "BasePlotTemplate",
     "SingleMetricPlotTemplate",
+    "RandomRestartPlotTemplate",
     "SimulatedAnnealingPlotTemplate",
+    "GeneticAlgorithmPlotTemplate",
     "PlotTemplateFactory"
 ]
 
