@@ -13,18 +13,18 @@ class RandomRestartHillClimbing(HillClimbing):
         # Implement the logic to generate a random TruckState
         # For example, you can randomly assign values to the attributes of TruckState
         # This is a placeholder implementation; replace it with your actual logic
-        random_state = copy.deepcopy(self.current_state)
+        random_state = self.current_state.generate_random_state()
         # Randomize the state attributes here
         return random_state
 
     def optimize(self) -> TruckState:
+        start_time = time.time()
         best_state = self.current_state
         best_cost = objectiveFunction(best_state)
 
         for restart in range(self.max_restarts):
             self.current_state = self.random_initial_state()
             current_cost = objectiveFunction(self.current_state)
-
             while True:
                 neighbors = self.get_all_neighbors(self.current_state)
                 best_neighbor = -1
@@ -42,11 +42,25 @@ class RandomRestartHillClimbing(HillClimbing):
 
                 self.current_state = neighbors[best_neighbor]
                 current_cost = objectiveFunction(self.current_state)
+                self.history.append({
+                    "iteration": i,
+                    "current_cost": current_cost,
+                    "best_cost": best_cost,
+                    "accepted": current_cost > best_cost
+                })
 
             if current_cost > best_cost:
                 best_state = copy.deepcopy(self.current_state)
                 best_cost = current_cost
+            self.history.append({
+                "iteration": i,
+                "current_cost": current_cost,
+                "best_cost": best_cost,
+                "accepted": current_cost > best_cost
+            })
 
+            
+        self.execution_time = time.time() - start_time
         return best_state
 
     
