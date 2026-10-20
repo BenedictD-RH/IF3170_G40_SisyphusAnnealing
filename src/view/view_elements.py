@@ -1,7 +1,8 @@
 import pyray as rl
-import sys
-import json
-import subprocess
+try:
+    from .plotter import launch_plot_subprocess, show_plot
+except ImportError:
+    from plotter import launch_plot_subprocess, show_plot
 
 def get_ui_mouse_position() -> rl.Vector2:
     mouse = rl.get_mouse_position()
@@ -370,62 +371,8 @@ class HUD :
         self.ga_pkg_mutation_prob_text_entry.draw()
         self.ga_plcment_mutation_prob_text_entry.draw()
 
-def plot_history(history) :
-    if not history:
-        print("[WARNING] No history data to plot.")
-        return
-
-    plot_script = (
-        "import os, sys, json\n"
-        "if 'MPLCONFIGDIR' not in os.environ:\n"
-        "    import tempfile\n"
-        "    os.environ['MPLCONFIGDIR'] = tempfile.gettempdir()\n"
-        "try:\n"
-        "    import matplotlib.pyplot as plt\n"
-        "except ImportError:\n"
-        "    print('[WARNING] matplotlib is not installed. Please run: pip install matplotlib')\n"
-        "    sys.exit(0)\n"
-        "try:\n"
-        "    data = json.loads(sys.stdin.read())\n"
-        "    if isinstance(data, dict) and 'probabilities' in data:\n"
-        "        # Berlaku khusus Simulated Annealing: Plot Objective dan e^(delta/T) vs Iterasi\n"
-        "        objs = data.get('objectives', [])\n"
-        "        probs = data.get('probabilities', [])\n"
-        "        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 7), sharex=True)\n"
-        "        ax1.plot(range(len(objs)), objs, marker='o', markersize=2, color='tab:blue', label='Objective')\n"
-        "        ax1.set_ylabel('Objective Value')\n"
-        "        ax1.set_title('Simulated Annealing: Objective vs Iteration')\n"
-        "        ax1.grid(True, linestyle='--', alpha=0.6)\n"
-        "        ax1.legend()\n"
-        "        ax2.plot(range(len(probs)), probs, marker='.', markersize=2, color='tab:red', label='e^(delta/T)')\n"
-        "        ax2.set_xlabel('Iteration')\n"
-        "        ax2.set_ylabel('e^(delta / T)')\n"
-        "        ax2.set_ylim(-0.05, 1.05)\n"
-        "        ax2.set_title('Simulated Annealing: Acceptance Probability e^(delta/T) vs Iteration')\n"
-        "        ax2.grid(True, linestyle='--', alpha=0.6)\n"
-        "        ax2.legend()\n"
-        "    else:\n"
-        "        # Algoritma Umum (Hill Climbing / Genetic Algorithm): Plot Objective vs Iterasi\n"
-        "        objs = data if isinstance(data, list) else data.get('objectives', [])\n"
-        "        fig, ax = plt.subplots(figsize=(7, 4.5))\n"
-        "        ax.plot(range(len(objs)), objs, marker='o', markersize=2, color='tab:blue')\n"
-        "        ax.set_xlabel('Iteration')\n"
-        "        ax.set_ylabel('Objective')\n"
-        "        ax.set_title('Optimization History')\n"
-        "        ax.grid(True, linestyle='--', alpha=0.6)\n"
-        "    plt.tight_layout()\n"
-        "    plt.show()\n"
-        "except Exception as e:\n"
-        "    print(f'[ERROR] Could not display plot: {e}')\n"
-    )
-
-    try:
-        payload = history if isinstance(history, dict) else list(history)
-        proc = subprocess.Popen([sys.executable, "-c", plot_script], stdin=subprocess.PIPE, text=True)
-        proc.stdin.write(json.dumps(payload))
-        proc.stdin.close()
-    except Exception as e:
-        print(f"[ERROR] Failed to launch plot subprocess: {e}")
+def plot_history(history):
+    launch_plot_subprocess(history)
 class ResultView :
     def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[], stuck_info=None) :
         self.exec_time = exec_time
