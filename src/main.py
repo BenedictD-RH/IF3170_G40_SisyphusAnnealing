@@ -1,5 +1,6 @@
 import os
 import sys
+import math
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BASE_DIR not in sys.path:
@@ -332,25 +333,84 @@ truck_l = currentState.truck.dimensions['l'] if currentState != None else 25
 truck_h = currentState.truck.dimensions['h'] if currentState != None else 10
 
 camera = rl.Camera3D(
-    rl.Vector3(-truck_w*1.25, truck_h*1.75, -truck_l*1.25),
-    rl.Vector3(truck_w*2, -truck_h*0.25, truck_l*1.5),
+    rl.Vector3(-truck_w*1.5, truck_h*2.0, -truck_l*1.5),
+    rl.Vector3(truck_w/2.0, truck_h/2.0, truck_l/2.0),
     rl.Vector3(0.0, 1.0, 0.0),
     45.0,
     rl.CAMERA_PERSPECTIVE
 )
 
-camera_mode = rl.CAMERA_PERSPECTIVE
 history = []
 
 while not rl.window_should_close():
     mouse_pos = get_ui_mouse_position()
-    if mouse_pos.x > hud.bb.width and not (result_view.hasResult() and rl.check_collision_point_rec(mouse_pos, result_view.bb)):
-        rl.update_camera(camera, camera_mode)
+    in_viewport = mouse_pos.x > hud.bb.width and not (result_view.hasResult() and rl.check_collision_point_rec(mouse_pos, result_view.bb))
+
+    mouse_delta = rl.get_mouse_delta()
+    wheel = rl.get_mouse_wheel_move()
+
+    is_rotating = in_viewport and (
+        rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_RIGHT) or
+        rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_LEFT)
+    )
+    is_panning = in_viewport and (
+        rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_MIDDLE) or
+        (rl.is_key_down(rl.KeyboardKey.KEY_LEFT_SHIFT) and rl.is_mouse_button_down(rl.MouseButton.MOUSE_BUTTON_RIGHT))
+    )
+
+    dx = camera.position.x - camera.target.x
+    dy = camera.position.y - camera.target.y
+    dz = camera.position.z - camera.target.z
+    radius = math.sqrt(dx * dx + dy * dy + dz * dz)
+    if radius < 0.001:
+        radius = 1.0
+
+    theta = math.atan2(dz, dx)
+    phi = math.asin(max(-0.999, min(0.999, dy / radius)))
+
+    if is_rotating and not is_panning and (mouse_delta.x != 0 or mouse_delta.y != 0):
+        sensitivity = 0.008
+        theta -= mouse_delta.x * sensitivity
+        phi += mouse_delta.y * sensitivity
+        max_phi = math.pi / 2.0 - 0.02
+        phi = max(-max_phi, min(max_phi, phi))
+
+    if in_viewport and wheel != 0:
+        zoom_speed = max(1.0, radius * 0.1)
+        radius = max(3.0, radius - wheel * zoom_speed)
+
+    cos_phi = math.cos(phi)
+    new_pos_x = camera.target.x + radius * cos_phi * math.cos(theta)
+    new_pos_y = camera.target.y + radius * math.sin(phi)
+    new_pos_z = camera.target.z + radius * cos_phi * math.sin(theta)
+
+    if is_panning and (mouse_delta.x != 0 or mouse_delta.y != 0):
+        pan_factor = 0.003 * radius
+        right_x = math.sin(theta)
+        right_z = -math.cos(theta)
+        pan_dx = (-mouse_delta.x * right_x) * pan_factor
+        pan_dz = (-mouse_delta.x * right_z) * pan_factor
+        pan_dy = (mouse_delta.y) * pan_factor
+        camera.target.x += pan_dx
+        camera.target.y += pan_dy
+        camera.target.z += pan_dz
+        new_pos_x += pan_dx
+        new_pos_y += pan_dy
+        new_pos_z += pan_dz
+
+    camera.position.x = new_pos_x
+    camera.position.y = new_pos_y
+    camera.position.z = new_pos_z
+
+    if rl.is_key_pressed(rl.KeyboardKey.KEY_R):
+        tw = currentState.truck.dimensions['w'] if currentState != None else 15
+        tl = currentState.truck.dimensions['l'] if currentState != None else 25
+        th = currentState.truck.dimensions['h'] if currentState != None else 10
+        camera.target = rl.Vector3(tw / 2.0, th / 2.0, tl / 2.0)
+        camera.position = rl.Vector3(-tw * 1.5, th * 2.0, -tl * 1.5)
+
     rl.begin_drawing()
     rl.clear_background(rl.RAYWHITE)
-
-    if rl.is_key_pressed(rl.KeyboardKey.KEY_V) :
-        camera_mode = rl.CAMERA_FREE if camera_mode == rl.CAMERA_PERSPECTIVE else rl.CAMERA_PERSPECTIVE
     
     rl.begin_mode_3d(camera)
     rl.draw_grid(20, 1.0)
@@ -513,20 +573,18 @@ while not rl.window_should_close():
             except Exception as e:
                 print(f"Error starting optimization thread: {e}")
 
-    if resetState :
+    if resetState:
         truck_w = currentState.truck.dimensions['w'] if currentState != None else 15
         truck_l = currentState.truck.dimensions['l'] if currentState != None else 25
         truck_h = currentState.truck.dimensions['h'] if currentState != None else 10
 
         camera = rl.Camera3D(
-            rl.Vector3(-truck_w*1.25, truck_h*1.75, -truck_l*1.25),
-            rl.Vector3(truck_w*2, -truck_h*0.25, truck_l*1.5),
+            rl.Vector3(-truck_w * 1.5, truck_h * 2.0, -truck_l * 1.5),
+            rl.Vector3(truck_w / 2.0, truck_h / 2.0, truck_l / 2.0),
             rl.Vector3(0.0, 1.0, 0.0),
             45.0,
             rl.CAMERA_PERSPECTIVE
         )
-
-        camera_mode = rl.CAMERA_PERSPECTIVE
     hud.command = ""
     
 
