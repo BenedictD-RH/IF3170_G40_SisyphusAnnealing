@@ -373,35 +373,43 @@ class HUD :
 
 def plot_history(history):
     launch_plot_subprocess(history)
-class ResultView :
-    def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[], stuck_info=None) :
+
+
+class ResultView:
+    def __init__(self, exec_time, final_objective_value, actual_value, is_valid, history=[], stuck_info=None, loss_details=None):
         self.exec_time = exec_time
         self.final_objective_value = final_objective_value
         self.actual_value = actual_value
         self.is_valid = is_valid
         self.history = history
         self.stuck_info = stuck_info
+        self.loss_details = loss_details
 
-        height = 340 if stuck_info else 300
-        self.bb = rl.Rectangle(300, 0, 200, height)
-        self.plot_btn = Button("Display Plot", 350, int(height) - 55, 100, 40, 17, 
-                               on_click=lambda:plot_history(self.history), 
+        height = 300
+        if stuck_info:
+            height += 36
+        if loss_details:
+            height += 105
+
+        self.bb = rl.Rectangle(300, 0, 220, height)
+        self.plot_btn = Button("Display Plot", 360, int(height) - 48, 100, 36, 16, 
+                               on_click=lambda: plot_history(self.history), 
                                color=rl.GRAY, 
                                hover_color=rl.DARKGRAY, 
                                text_color=rl.WHITE)
 
-    def hasResult(self) :
+    def hasResult(self):
         return not (self.exec_time == 0 and self.final_objective_value == 0 and self.actual_value == 0 and self.is_valid == False)
 
-    def draw(self) :
-        rl.draw_rectangle_pro(self.bb, (0,0), 0, rl.LIGHTGRAY)
+    def draw(self):
+        rl.draw_rectangle_pro(self.bb, (0, 0), 0, rl.LIGHTGRAY)
         rl.draw_rectangle_lines_ex(self.bb, 2, rl.GRAY)
 
         x = int(self.bb.x) + 12
-        y = int(self.bb.y) + 12
+        y = int(self.bb.y) + 10
 
         rl.draw_text("Result", x, y, 20, rl.BLACK)
-        y += 36
+        y += 30
 
         lines = [
             ("Exec time", f"{self.exec_time:.3f} s", rl.BLACK),
@@ -410,11 +418,22 @@ class ResultView :
             ("Valid", "Yes" if self.is_valid else "No",
              rl.DARKGREEN if self.is_valid else rl.MAROON),
         ]
+
+        if self.loss_details:
+            loaded_c = self.loss_details.get("loaded_count", 0)
+            lost_c = self.loss_details.get("lost_count", 0)
+            lost_v = self.loss_details.get("total_lost_value", 0.0)
+            w_load = self.loss_details.get("total_loaded_weight", 0)
+            max_w = self.loss_details.get("max_capacity", 0)
+            lines.append(("Box Loaded/Lost", f"{loaded_c} in / {lost_c} loss", rl.BLACK if lost_c == 0 else rl.MAROON))
+            lines.append(("Loss Value", f"{lost_v:,.1f}", rl.BLACK if lost_v == 0 else rl.MAROON))
+            lines.append(("Weight", f"{w_load} / {max_w}", rl.BLACK if w_load <= max_w else rl.RED))
+
         if self.stuck_info:
             lines.append(("Stuck Freq", str(self.stuck_info), rl.DARKBLUE))
 
-        for label, value, color in lines :
-            rl.draw_text(label, x, y, 14, rl.DARKGRAY)
-            rl.draw_text(value, x, y + 16, 18, color)
-            y += 38
+        for label, value, color in lines:
+            rl.draw_text(label, x, y, 13, rl.DARKGRAY)
+            rl.draw_text(value, x, y + 14, 16, color)
+            y += 33
         self.plot_btn.draw()

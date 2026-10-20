@@ -30,6 +30,9 @@ def drawTruckState(state : TruckState, camera) :
                        state.truck.dimensions['w'], state.truck.dimensions['h'], state.truck.dimensions['l'], rl.BLACK)
     mouse_pos = rl.get_mouse_position()
     ray = rl.get_screen_to_world_ray(mouse_pos, camera)
+    
+    hovered_box = None
+
     for p in state.packages :
         if p.isInTruck(state.truck.dimensions) :
             x1, y1, z1, x2, y2, z2 = p.getAbsoluteBB()
@@ -45,33 +48,57 @@ def drawTruckState(state : TruckState, camera) :
             color = color_dict[p.getID()] if not p.isFragile() else rl.fade(color_dict[p.getID()], 0.5)
 
             package_bb = rl.BoundingBox((x1, z1, y1), (x2, z2, y2))
-                                    
             collision = rl.get_ray_collision_box(ray, package_bb)
 
             rl.draw_cube((x1 + w/2, z1 + h/2, y1 + l/2), w, h, l, color)
-            
             rl.draw_cube_wires((x1 + w/2, z1 + h/2, y1 + l/2), w, h, l, rl.WHITE if collision.hit else rl.BLACK)
 
-    
-    rl.end_mode_3d()
+            if collision.hit and not hovered_box:
+                hovered_box = (x1 + w/2, z1 + h/2, y1 + l/2, p.getStateString(), False)
 
+    # Tampilkan box yang loss (di luar peti kemas truk)
+    lost_y = 0.0
     for p in state.packages :
-        if p.isInTruck(state.truck.dimensions) :
-            x1, y1, z1, x2, y2, z2 = p.getAbsoluteBB()
-            w = x2 - x1
-            l = y2 - y1
-            h = z2 - z1
+        if not p.isInTruck(state.truck.dimensions) :
+            w = p.package.dimensions[p.orientation["x"]]
+            l = p.package.dimensions[p.orientation["y"]]
+            h = p.package.dimensions[p.orientation["z"]]
             
-            package_bb = rl.BoundingBox((x1, z1, y1), (x2, z2, y2))
-            
+            x1 = -w - 3.0
+            z1 = 0.0
+            y1 = lost_y
+            x2 = -3.0
+            z2 = h
+            y2 = lost_y + l
+            lost_y += l + 1.5
 
+            if p.getID() not in color_dict :
+                color_dict[p.getID()] = rl.Color(
+                    rl.get_random_value(0, 255),
+                    rl.get_random_value(0, 255),
+                    rl.get_random_value(0, 255),
+                    255)
+
+            loss_color = rl.fade(color_dict[p.getID()], 0.35)
+            package_bb = rl.BoundingBox((x1, z1, y1), (x2, z2, y2))
             collision = rl.get_ray_collision_box(ray, package_bb)
 
-            if collision.hit and mouse_pos.x > hud.bb.width and not (result_view.hasResult() and rl.check_collision_point_rec(get_ui_mouse_position(), result_view.bb)):
-                screenPos = rl.get_world_to_screen((x1 + w/2, z1 + h/2, y1 + l/2), camera)
-                rl.draw_rectangle(int(screenPos.x), int(screenPos.y), 310, 165, rl.LIGHTGRAY)
-                rl.draw_text(p.getStateString(), int(screenPos.x) + 5, int(screenPos.y) + 5, 18, rl.BLACK)
-                break
+            rl.draw_cube((x1 + w/2, z1 + h/2, y1 + l/2), w, h, l, loss_color)
+            rl.draw_cube_wires((x1 + w/2, z1 + h/2, y1 + l/2), w, h, l, rl.YELLOW if collision.hit else rl.RED)
+
+            if collision.hit and not hovered_box:
+                loss_info_str = f"STATUS: [LOSS / UNLOADED]\n" + p.getStateString()
+                hovered_box = (x1 + w/2, z1 + h/2, y1 + l/2, loss_info_str, True)
+
+    rl.end_mode_3d()
+
+    if hovered_box and mouse_pos.x > hud.bb.width and not (result_view.hasResult() and rl.check_collision_point_rec(get_ui_mouse_position(), result_view.bb)):
+        cx, cy, cz, txt, is_loss = hovered_box
+        screenPos = rl.get_world_to_screen((cx, cy, cz), camera)
+        card_h = 185 if is_loss else 165
+        rl.draw_rectangle(int(screenPos.x), int(screenPos.y), 310, card_h, rl.LIGHTGRAY)
+        rl.draw_rectangle_lines(int(screenPos.x), int(screenPos.y), 310, card_h, rl.RED if is_loss else rl.GRAY)
+        rl.draw_text(txt, int(screenPos.x) + 5, int(screenPos.y) + 5, 17, rl.MAROON if is_loss else rl.BLACK)
 
 
 
@@ -103,8 +130,11 @@ optimization_data = {
     "is_valid": False,
     "history": [],
     "stuck_info": None,
+    "benchmark_row": None,
+    "loss_details": None,
     "error": None,
 }
+
 
 def run_optimization_worker(params):
     global optimization_data
@@ -116,24 +146,40 @@ def run_optimization_worker(params):
         dur = 0.0
         hist = []
         stuck_info = None
+        algo_display_name = algo_name
+        accepted_moves = 0
+        sa_stuck_table_str = "-"
+        iterations = params.get("max_iter", 1000)
 
         if algo_name == "Hill Climbing":
             if hc_name == "Steepest":
                 hc = SteepestHillClimbing(init_st, params["max_iter"], params["step_size"], False)
                 final = hc.optimize()
                 dur = hc.execution_time
+                algo_display_name = "Steepest HC"
+                accepted_moves = getattr(hc, "accepted_moves", 0)
+                iterations = params["max_iter"]
             elif hc_name == "Sideways":
                 hc = SidewaysHillClimbing(init_st, params["max_iter"], params["step_size"], False, params["max_sideways"])
                 final = hc.optimize()
                 dur = hc.execution_time
+                algo_display_name = f"Sideways HC (max={params['max_sideways']})"
+                accepted_moves = getattr(hc, "accepted_moves", 0)
+                iterations = params["max_iter"]
             elif hc_name == "Random Restart":
                 hc = RandomRestartHillClimbing(init_st, params["max_iter"], params["step_size"], False, params["max_restart"])
                 final = hc.optimize()
                 dur = hc.execution_time
+                algo_display_name = f"Random Restart HC (max={params['max_restart']})"
+                accepted_moves = getattr(hc, "accepted_moves", 0)
+                iterations = getattr(hc, "total_iterations", params["max_iter"])
             elif hc_name == "Stochastic":
                 hc = StochasticHillClimbing(init_st, params["max_iter"], params["step_size"], params["temperature"], False)
                 final = hc.optimize()
                 dur = hc.execution_time
+                algo_display_name = f"Stochastic HC (T={params['temperature']})"
+                accepted_moves = getattr(hc, "accepted_moves", 0)
+                iterations = params["max_iter"]
             if hc is not None and hasattr(hc, "history"):
                 if hc_name == "Random Restart":
                     hist = {
@@ -145,6 +191,7 @@ def run_optimization_worker(params):
                     for entry in hc.history:
                         hist.append(entry['current_cost'])
         elif algo_name == "Simulated Annealing":
+            iterations = params["sa_max_iter"]
             sa = SimulatedAnnealing(
                 init_st,
                 params["sa_init_temp"],
@@ -158,11 +205,23 @@ def run_optimization_worker(params):
             )
             final = sa.optimize()
             dur = sa.execution_time
+            accepted_moves = getattr(sa, "accepted_moves", getattr(sa, "accepted_better_moves", 0) + getattr(sa, "accepted_worse_moves", 0))
+            sched = str(params["sa_schedule"])
+            if sched.lower() == "geometric":
+                algo_display_name = f"Simulated Annealing (T0={params['sa_init_temp']:.0f}, alpha={params['sa_cooling_rate']})"
+            elif sched.lower() == "linear":
+                algo_display_name = f"Simulated Annealing (T0={params['sa_init_temp']:.0f}, Linear)"
+            elif sched.lower() == "logarithmic":
+                algo_display_name = f"Simulated Annealing (T0={params['sa_init_temp']:.0f}, Logarithmic)"
+            else:
+                algo_display_name = f"Simulated Annealing (T0={params['sa_init_temp']:.0f}, {sched})"
+
             if hasattr(sa, "history"):
                 objectives = [entry['current_cost'] for entry in sa.history]
                 probabilities = [entry.get('probability', 1.0) for entry in sa.history]
                 stuck_data = sa.get_stuck_metrics()
                 stuck_info = f"{stuck_data['stuck_episodes']}x ({stuck_data['rejected_moves']} rej)"
+                sa_stuck_table_str = f"{stuck_data['stuck_episodes']:.1f} eps ({stuck_data['rejection_rate']:.1f}% rej)"
                 hist = {
                     "algo": "Simulated Annealing",
                     "objectives": objectives,
@@ -170,6 +229,8 @@ def run_optimization_worker(params):
                     "stuck_metrics": stuck_data
                 }
         elif algo_name == "Genetic Algorithm":
+            iterations = params["ga_generations"]
+            algo_display_name = f"Genetic Algorithm (pop={params['ga_pop_size']}, gen={params['ga_generations']})"
             res = genetic_algorithm(
                 init_st,
                 params["ga_pop_size"],
@@ -181,19 +242,64 @@ def run_optimization_worker(params):
             )
             final = res.final_state
             dur = res.duration
+            accepted_moves = len(res.history) if hasattr(res, "history") else 0
             if hasattr(res, "history"):
                 hist = {"maximum": [entry.maximum_fitness for entry in res.history],
                         "mean": [entry.mean_fitness for entry in res.history],
                         "best_feasible": [s.best_feasible_fitness for s in res.history]}
 
         if final is not None:
+            init_cost = objectiveFunction(init_st)
+            best_cost = objectiveFunction(final)
+            imprv = best_cost - init_cost
+
+            truck_dims = final.truck.dimensions
+            max_cap = final.truck.maxCapacity
+            total_pkgs = len(final.packages)
+            loaded_pkgs = [p for p in final.packages if p.isInTruck(truck_dims)]
+            lost_pkgs = [p for p in final.packages if not p.isInTruck(truck_dims)]
+
+            total_loaded_weight = sum(p.getWeight() for p in loaded_pkgs)
+            total_loaded_value = sum(p.getValue() for p in loaded_pkgs)
+            total_lost_value = sum(p.getValue() for p in lost_pkgs)
+            total_potential_value = total_loaded_value + total_lost_value
+
+            loss_details = {
+                "total_packages": total_pkgs,
+                "loaded_count": len(loaded_pkgs),
+                "lost_count": len(lost_pkgs),
+                "lost_ids": [p.getID() for p in lost_pkgs],
+                "loaded_ids": [p.getID() for p in loaded_pkgs],
+                "total_loaded_weight": total_loaded_weight,
+                "max_capacity": max_cap,
+                "total_loaded_value": total_loaded_value,
+                "total_lost_value": total_lost_value,
+                "total_potential_value": total_potential_value,
+                "is_valid": isValid(final)
+            }
+
             optimization_data["finalState"] = final
             optimization_data["exec_time"] = dur
-            optimization_data["objective_function"] = objectiveFunction(final)
+            optimization_data["objective_function"] = best_cost
             optimization_data["true_state_value"] = getTotalValue(final)
             optimization_data["is_valid"] = isValid(final)
             optimization_data["history"] = hist
             optimization_data["stuck_info"] = stuck_info
+            optimization_data["loss_details"] = loss_details
+            optimization_data["benchmark_row"] = {
+                "name": algo_display_name,
+                "filename": params.get("filename", "initial_state.json"),
+                "packages_count": len(init_st.packages),
+                "capacity": init_st.truck.maxCapacity,
+                "iterations": iterations,
+                "avg_init": init_cost,
+                "avg_best": best_cost,
+                "max_best": best_cost,
+                "improvement": imprv,
+                "avg_accepted": float(accepted_moves),
+                "avg_time": dur,
+                "sa_stuck_info": sa_stuck_table_str
+            }
             optimization_data["error"] = None
         optimization_data["done"] = True
     except Exception as e:
@@ -286,9 +392,58 @@ while not rl.window_should_close():
                 is_valid = optimization_data["is_valid"]
                 history = optimization_data["history"]
                 stuck_info = optimization_data.get("stuck_info")
-                result_view = ResultView(exec_time, objective_function, true_state_value, is_valid, history, stuck_info)
-                stuck_log = f" | SA Stuck: {stuck_info}" if stuck_info else ""
-                print(f"Optimization finished in {exec_time:.3f}s | Obj: {objective_function:.2f} | Value: {true_state_value:.1f} | Valid: {is_valid}{stuck_log}")
+                loss_details = optimization_data.get("loss_details")
+                result_view = ResultView(exec_time, objective_function, true_state_value, is_valid, history, stuck_info, loss_details)
+                row = optimization_data.get("benchmark_row")
+                if row:
+                    header = f"{'Algoritma':<42} | {'Avg Init':>9} | {'Avg Best':>9} | {'Max Best':>9} | {'Avg Imprv':>9} | {'Avg Acc':>7} | {'Avg Time':>9} | {'SA Stuck':>15}"
+                    sep = "=" * len(header)
+                    banner = f" BENCHMARK OPTIMASI: {row['filename']} | {row['packages_count']} Kotak | Kapasitas: {row['capacity']} | Iterasi: {row['iterations']}"
+                    divider = "-" * len(header)
+                    row_str = (
+                        f"{row['name']:<42} | {row['avg_init']:>9.2f} | {row['avg_best']:>9.2f} | {row['max_best']:>9.2f} | "
+                        f"{row['improvement']:>+9.2f} | {row['avg_accepted']:>7.1f} | {row['avg_time']:>8.4f}s | {row['sa_stuck_info']:>15}"
+                    )
+                    
+                    lines = [
+                        "",
+                        sep,
+                        banner,
+                        sep,
+                        header,
+                        divider,
+                        row_str,
+                        sep
+                    ]
+
+                    if loss_details:
+                        pct_loaded = (loss_details['loaded_count'] / loss_details['total_packages'] * 100) if loss_details['total_packages'] > 0 else 0
+                        pct_lost = (loss_details['lost_count'] / loss_details['total_packages'] * 100) if loss_details['total_packages'] > 0 else 0
+                        lost_id_str = str(loss_details['lost_ids']) if loss_details['lost_ids'] else "None (Semua Termuat)"
+                        lines.extend([
+                            " Detail Muatan & Box Loss:",
+                            f" - Kotak Termuat (Loaded) : {loss_details['loaded_count']} / {loss_details['total_packages']} ({pct_loaded:.1f}%)",
+                            f" - Kotak Loss (Unloaded)  : {loss_details['lost_count']} / {loss_details['total_packages']} ({pct_lost:.1f}%)",
+                            f" - Total Nilai Loss       : {loss_details['total_lost_value']:,.1f} (dari total nilai potensial {loss_details['total_potential_value']:,.1f})",
+                            f" - Nilai Aktual Terangkut : {true_state_value:,.1f}",
+                            f" - Daftar ID Box Loss     : {lost_id_str}",
+                            f" - Bobot Terangkut        : {loss_details['total_loaded_weight']} / {loss_details['max_capacity']}",
+                            f" - Status Solusi          : {'Valid (Memenuhi Batasan)' if loss_details['is_valid'] else 'Invalid (Ada Pelanggaran)'}",
+                            sep
+                        ])
+
+                    benchmark_output = "\n".join(lines) + "\n"
+                    print(benchmark_output)
+                    try:
+                        out_dir = os.path.join(BASE_DIR, "output")
+                        os.makedirs(out_dir, exist_ok=True)
+                        with open(os.path.join(out_dir, "result.txt"), "a", encoding="utf-8") as f:
+                            f.write(benchmark_output + "\n")
+                    except Exception:
+                        pass
+                else:
+                    stuck_log = f" | SA Stuck: {stuck_info}" if stuck_info else ""
+                    print(f"Optimization finished in {exec_time:.3f}s | Obj: {objective_function:.2f} | Value: {true_state_value:.1f} | Valid: {is_valid}{stuck_log}")
 
     resetState = False
     if is_optimizing:
@@ -327,6 +482,7 @@ while not rl.window_should_close():
                 base_st = initialState if initialState is not None else currentState
                 init_clone = base_st.clone() if hasattr(base_st, 'clone') else copy.deepcopy(base_st)
                 params = {
+                    "filename": hud.input_file_text_entry.text.strip(),
                     "initial_state": init_clone,
                     "algo_name": hud.algorithm_switch.get_current_label(),
                     "hc_name": hud.hc_switch.get_current_label(),
