@@ -1,11 +1,24 @@
-from data_struct.data_struct import TruckState, objectiveFunction, isValid, getTotalValue
-from algorithm import SteepestHillClimbing, SidewaysHillClimbing, RandomRestartHillClimbing, StochasticHillClimbing, SimulatedAnnealing, genetic_algorithm
-from view.view_elements import TextEntry, Button, HUD, ResultView
+import os
+import sys
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+SRC_DIR = os.path.abspath(os.path.dirname(__file__))
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
+
+try:
+    from data_struct.data_struct import TruckState, objectiveFunction, isValid, getTotalValue
+    from algorithm import SteepestHillClimbing, SidewaysHillClimbing, RandomRestartHillClimbing, StochasticHillClimbing, SimulatedAnnealing, genetic_algorithm
+    from view.view_elements import TextEntry, Button, HUD, get_ui_mouse_position, ResultView
+except ImportError:
+    from src.data_struct.data_struct import TruckState, objectiveFunction, isValid, getTotalValue
+    from src.algorithm import SteepestHillClimbing, SidewaysHillClimbing, RandomRestartHillClimbing, StochasticHillClimbing, SimulatedAnnealing, genetic_algorithm
+    from src.view.view_elements import TextEntry, Button, HUD, get_ui_mouse_position, ResultView
+
 import pyray as rl
-import matplotlib.pyplot as plt
 import json
-
-
 
 color_dict = {}
 
